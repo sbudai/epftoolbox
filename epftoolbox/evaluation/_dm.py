@@ -59,7 +59,7 @@ def DM(p_real, p_pred_1, p_pred_2, norm=1, version='univariate'):
     Example
     -------
     >>> from epftoolbox.evaluation import DM
-    >>> from epftoolbox.data import read_data
+    >>> from epftoolbox.data import read_and_split_data
     >>> import pandas as pd
     >>> 
     >>> # Generating forecasts of multiple models
@@ -76,7 +76,7 @@ def DM(p_real, p_pred_1, p_pred_2, norm=1, version='univariate'):
     >>> forecasts.index = pd.to_datetime(forecasts.index)
     >>> 
     >>> # Extracting the real prices from the market
-    >>> _, df_test = read_data(path='.', dataset='NP', begin_test_date=forecasts.index[0], 
+    >>> _, df_test = read_and_split_data(path='.', dataset='NP', begin_test_date=forecasts.index[0], 
     ...                        end_test_date=forecasts.index[-1])
     Test datasets: 2016-12-27 00:00:00 - 2018-12-24 23:00:00
     >>> 
@@ -182,7 +182,7 @@ def plot_multivariate_DM_test(real_price, forecasts, norm=1, title='DM test', sa
     Example
     -------
     >>> from epftoolbox.evaluation import DM, plot_multivariate_DM_test
-    >>> from epftoolbox.data import read_data
+    >>> from epftoolbox.data import read_and_split_data
     >>> import pandas as pd
     >>> 
     >>> # Generating forecasts of multiple models
@@ -199,7 +199,7 @@ def plot_multivariate_DM_test(real_price, forecasts, norm=1, title='DM test', sa
     >>> forecasts.index = pd.to_datetime(forecasts.index)
     >>> 
     >>> # Extracting the real prices from the market
-    >>> _, df_test = read_data(path='.', dataset='NP', begin_test_date=forecasts.index[0], 
+    >>> _, df_test = read_and_split_data(path='.', dataset='NP', begin_test_date=forecasts.index[0], 
     ...                        end_test_date=forecasts.index[-1])
     Test datasets: 2016-12-27 00:00:00 - 2018-12-24 23:00:00
     >>> 
