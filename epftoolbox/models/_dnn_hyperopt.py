@@ -15,10 +15,11 @@ from datetime import datetime
 from epftoolbox.models import DNNModel
 from epftoolbox.models._dnn import _build_and_split_XYs
 from epftoolbox.data import scaling
-from epftoolbox.data import read_data
+from epftoolbox.data import read_and_split_data
 from epftoolbox.evaluation import MAE, sMAPE
 from functools import partial
 import os
+
 
 def _build_space(nlayer, data_augmentation, n_exogenous_inputs):
     """Function that generates the hyperparameter/feature search space 
@@ -49,14 +50,12 @@ def _build_space(nlayer, data_augmentation, n_exogenous_inputs):
         'activation': hp.choice('activation', ["relu", "softplus", "tanh", 'selu',
                                 'LeakyReLU', 'PReLU', 'sigmoid']),
         'init': hp.choice('init', ['Orthogonal', 'lecun_uniform', 'glorot_uniform',
-            'glorot_normal', 'he_uniform', 'he_normal']),
+                                   'glorot_normal', 'he_uniform', 'he_normal']),
         'reg': hp.choice('reg', [
             {'val': None, 'lambda': 0},
             {'val': 'l1', 'lambda': hp.loguniform('lambdal1', np.log(1e-5), np.log(1))}]),
-        'scaleX': hp.choice('scaleX', ['No', 'Norm', 'Norm1', 'Std',
-                                                   'Median', 'Invariant']),
-        'scaleY': hp.choice('scaleY', ['No', 'Norm', 'Norm1', 'Std',
-                                                   'Median', 'Invariant'])        
+        'scaleX': hp.choice('scaleX', ['No', 'Norm', 'Norm1', 'Std', 'Median', 'Invariant']),
+        'scaleY': hp.choice('scaleY', ['No', 'Norm', 'Norm1', 'Std', 'Median', 'Invariant'])
     }
 
     if nlayer >= 2:
@@ -67,7 +66,6 @@ def _build_space(nlayer, data_augmentation, n_exogenous_inputs):
         space['neurons4'] = hp.quniform('neurons4', 25, 200, 1)
     if nlayer >= 5:
         space['neurons5'] = hp.quniform('neurons5', 25, 200, 1)
-
 
     # Defining the possible input features as hyperparameters
     space['In: Day'] = hp.choice('In: Day', [False, True])
@@ -132,7 +130,7 @@ def _hyperopt_objective(hyperparameters, trials, trials_file_path, max_evals, nl
     dfTrain_cw = dfTrain.loc[dfTrain.index[-1] - pd.Timedelta(weeks=52) * calibration_window +
                              pd.Timedelta(hours=1):]
 
-    # Saving hyperoptimization state and printing message
+    # Saving hyper-optimization state and printing message
     pc.dump(trials, open(trials_file_path, "wb"))
     if trials.losses()[0] is not None:
 
@@ -152,9 +150,9 @@ def _hyperopt_objective(hyperparameters, trials, trials_file_path, max_evals, nl
 
     # Defining X,Y datasets
     Xtrain, Ytrain, Xval, Yval, Xtest, Ytest, indexTest = \
-        _build_and_split_XYs(dfTrain=dfTrain_cw, dfTest=dfTest, features=hyperparameters, 
-                          shuffle_train=shuffle_train, hyperoptimization=True,
-                          data_augmentation=data_augmentation, n_exogenous_inputs=n_exogenous_inputs)
+        _build_and_split_XYs(dfTrain=dfTrain_cw, dfTest=dfTest, features=hyperparameters,
+                             shuffle_train=shuffle_train, hyperoptimization=True,
+                             data_augmentation=data_augmentation, n_exogenous_inputs=n_exogenous_inputs)
     
     # If required, datasets are scaled
     if hyperparameters['scaleX'] in ['Norm', 'Norm1', 'Std', 'Median', 'Invariant']:
@@ -171,14 +169,14 @@ def _hyperopt_objective(hyperparameters, trials, trials_file_path, max_evals, nl
     np.random.seed(int(hyperparameters['seed']))
 
     # Initialize model
-    forecaster = DNNModel(neurons=neurons, n_features=Xtrain.shape[-1], 
-                     dropout=hyperparameters['dropout'], batch_normalization=hyperparameters['batch_normalization'], 
-                     lr=hyperparameters['lr'], verbose=False,
-                     optimizer='adam', activation=hyperparameters['activation'],
-                     epochs_early_stopping=20, scaler=scaler, loss='mae',
-                     regularization=hyperparameters['reg']['val'], 
-                     lambda_reg=hyperparameters['reg']['lambda'],
-                     initializer=hyperparameters['init'])
+    forecaster = DNNModel(neurons=neurons, n_features=Xtrain.shape[-1], dropout=hyperparameters['dropout'],
+                          batch_normalization=hyperparameters['batch_normalization'],
+                          lr=hyperparameters['lr'], verbose=False,
+                          optimizer='adam', activation=hyperparameters['activation'],
+                          epochs_early_stopping=20, scaler=scaler, loss='mae',
+                          regularization=hyperparameters['reg']['val'],
+                          lambda_reg=hyperparameters['reg']['lambda'],
+                          initializer=hyperparameters['init'])
 
     forecaster.fit(Xtrain, Ytrain, Xval, Yval)
 
@@ -206,6 +204,7 @@ def _hyperopt_objective(hyperparameters, trials, trials_file_path, max_evals, nl
                      'status': STATUS_OK}
                           
     return return_values
+
 
 def hyperparameter_optimizer(path_datasets_folder=os.path.join('.', 'datasets'), 
                              path_hyperparameters_folder=os.path.join('.', 'experimental_files'), 
@@ -235,7 +234,7 @@ def hyperparameter_optimizer(path_datasets_folder=os.path.join('.', 'datasets'),
         Number of layers of the DNN model.
     
     dataset : str, optional
-        Name of the dataset/market under study. If it is one one of the standard markets, 
+        Name of the dataset/market under study. If it is one of the standard markets,
         i.e. ``"PJM"``, ``"NP"``, ``"BE"``, ``"FR"``, or ``"DE"``, the dataset is automatically downloaded. If the name
         is different, a dataset with a csv format should be place in the ``path_datasets_folder``.
     
@@ -276,8 +275,7 @@ def hyperparameter_optimizer(path_datasets_folder=os.path.join('.', 'datasets'),
     """
 
     # Checking if provided directory for hyperparameter exists and if not create it
-    if not os.path.exists(path_hyperparameters_folder):
-        os.makedirs(path_hyperparameters_folder)
+    os.makedirs(name=path_hyperparameters_folder, exist_ok=True)
 
     if experiment_id is None:
         experiment_id = datetime.now().strftime("%d-%m-%Y_%H:%M:%S")
@@ -299,16 +297,14 @@ def hyperparameter_optimizer(path_datasets_folder=os.path.join('.', 'datasets'),
     else:
         trials = pc.load(open(trials_file_path, "rb"))
 
-
     # Generate training and test datasets
-    dfTrain, dfTest = read_data(dataset=dataset, years_test=years_test, path=path_datasets_folder,
-                                begin_test_date=begin_test_date, end_test_date=end_test_date)
+    dfTrain, dfTest = read_and_split_data(dataset=dataset, years_test=years_test, path=path_datasets_folder,
+                                          begin_test_date=begin_test_date, end_test_date=end_test_date)
 
     n_exogenous_inputs = len(dfTrain.columns) - 1
 
-    # Build hyperparamerter search space. This includes hyperparameter and features
-    space = _build_space(nlayers, data_augmentation, n_exogenous_inputs)
-
+    # Build hyperparameter search space. This includes hyperparameter and features
+    space = _build_space(nlayer=nlayers, data_augmentation=data_augmentation, n_exogenous_inputs=n_exogenous_inputs)
 
     # Perform hyperparameter optimization
     fmin_objective = partial(_hyperopt_objective, trials=trials, trials_file_path=trials_file_path, 
@@ -317,4 +313,4 @@ def hyperparameter_optimizer(path_datasets_folder=os.path.join('.', 'datasets'),
                              data_augmentation=data_augmentation, calibration_window=calibration_window,
                              n_exogenous_inputs=n_exogenous_inputs)
 
-    fmin(fmin_objective, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials, verbose=False)
+    fmin(fn=fmin_objective, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials, verbose=False)
