@@ -1,72 +1,102 @@
 from epftoolbox.evaluation import MAPE
-from epftoolbox.data import read_data
+from epftoolbox.data import read_and_split_data
 import pandas as pd
 
-# Download available forecast of the NP market available in the library repository
-# These forecasts accompany the original paper
-forecast = pd.read_csv('https://raw.githubusercontent.com/jeslago/epftoolbox/master/' + 
-                      'forecasts/Forecasts_NP_DNN_LEAR_ensembles.csv', index_col=0)
+# Download available day-ahead electricity price forecasts of
+# the Nord Pool market available in the library repository.
+# These forecasts accompany the original paper.
+print('market: Nord Pool')
+forecast = pd.read_csv('https://raw.githubusercontent.com/jeslago/epftoolbox/master/'
+                       'forecasts/Forecasts_NP_DNN_LEAR_ensembles.csv', index_col=0)
 
-# Transforming indices to datetime format
-forecast.index = pd.to_datetime(forecast.index)
+# Transforming the dataframe's timestamp indices to datetime format
+forecast.index = pd.to_datetime(arg=forecast.index)
 
-# Reading data from the NP market
-_, df_test = read_data(path='.', dataset='NP', begin_test_date=forecast.index[0], 
-                       end_test_date=forecast.index[-1])
+# Reading the real day-ahead electricity price data of the Nord Pool market.
+# The scope period should be the same as in forecasted data.
+_, df_test = read_and_split_data(path='../datasets', dataset='NP', response='Price',
+                                 begin_test_date=forecast.index[0], end_test_date=forecast.index[-1])
 
-# Extracting forecast of DNN ensemble and display
+# Extracting the day-ahead electricity price forecasts based on 'DNN Ensemble' model and display
 fc_DNN_ensemble = forecast.loc[:, ['DNN Ensemble']]
+print('fc_DNN_ensemble:', fc_DNN_ensemble, sep='\n')
 
-# Extracting real price and display
+# Extracting the real day-ahead electricity price data and display
 real_price = df_test.loc[:, ['Price']]
+print('real_price:', real_price, sep='\n')
 
-# Building the same datasets with shape (ndays, n_prices/day) instead 
-# of shape (nprices, 1) and display
-fc_DNN_ensemble_2D = pd.DataFrame(fc_DNN_ensemble.values.reshape(-1, 24), 
-                                  index=fc_DNN_ensemble.index[::24], 
-                                  columns=['h' + str(hour) for hour in range(24)])
-real_price_2D = pd.DataFrame(real_price.values.reshape(-1, 24), 
-                             index=real_price.index[::24], 
-                             columns=['h' + str(hour) for hour in range(24)])
-fc_DNN_ensemble_2D.head()
+# Building a 2-dimensional price forecast dataframe with shape (rows: n_days, columns: n_prices/n_day)
+# instead of 1-dimensional shape (rows: n_prices, columns: 1) and display
+# The doubled (autumn) daylight saving time hour values have averaged out.
+fc_DNN_ensemble['column_hour'] = ['h' + h for h in fc_DNN_ensemble.index.strftime('%H').astype(int).astype(str)]
+fc_DNN_ensemble_2D = pd.pivot_table(data=fc_DNN_ensemble, values='DNN Ensemble',
+                                    index=fc_DNN_ensemble.index.strftime('%Y-%m-%d'),
+                                    columns='column_hour', aggfunc='mean', sort=False)
+fc_DNN_ensemble.drop(['column_hour'], axis='columns', inplace=True)
+print('fc_DNN_ensemble_2D:', fc_DNN_ensemble_2D, sep='\n')
+
+# Building a 2-dimensional real price dataframe with shape (rows: n_days, columns: n_prices/n_day)
+# instead of 1-dimensional shape (rows: n_prices, columns: 1) and display
+# The doubled (autumn) daylight saving time hour values have averaged out.
+real_price['column_hour'] = ['h' + h for h in real_price.index.strftime('%H').astype(int).astype(str)]
+real_price_2D = pd.pivot_table(data=real_price, values='Price',
+                               index=real_price.index.strftime('%Y-%m-%d'),
+                               columns='column_hour', aggfunc='mean', sort=False)
+real_price.drop(['column_hour'], axis='columns', inplace=True)
+print('real_price_2D:', real_price_2D, sep='\n')
 
 
-# According to the paper, the MAPE of the DNN ensemble for the NP market is 5.38%.
+# According to the paper, the MAPE of the 'DNN Ensemble' day-ahead price forecast for the NP market is 5.38%.
 # Let's test the metric for different conditions
 
-# Evaluating MAPE when real price and forecasts are both dataframes
-MAPE(p_pred=fc_DNN_ensemble, p_real=real_price) * 100
+# Evaluating MAPE when real day-ahead price and forecasts are both 1-dimensional dataframes
+print('MAPE(p_real=real_price, p_pred=fc_DNN_ensemble): {0:5.2f}%'.
+      format(MAPE(p_real=real_price, p_pred=fc_DNN_ensemble) * 100))
 
-# Evaluating MAPE when real price and forecasts are both numpy arrays
-MAPE(p_pred=fc_DNN_ensemble.values, p_real=real_price.values) * 100
+# Evaluating MAPE when real day-ahead price and forecasts are both pandas Series
+print('MAPE(p_real=real_price.loc[:, "Price"], p_pred=fc_DNN_ensemble.loc[:, "DNN Ensemble"]): {0:5.2f}%'.
+      format(MAPE(p_real=real_price.loc[:, 'Price'], p_pred=fc_DNN_ensemble.loc[:, 'DNN Ensemble']) * 100))
 
-# Evaluating MAPE when input values are of shape (ndays, n_prices/day) instead 
-# of shape (nprices, 1)
-# Dataframes
-MAPE(p_pred=fc_DNN_ensemble_2D, p_real=real_price_2D) * 100
-# Numpy arrays
-MAPE(p_pred=fc_DNN_ensemble_2D.values, p_real=real_price_2D.values) * 100
+# Evaluating MAPE when real day-ahead price and forecasts are both 1-dimensional numpy arrays
+print('MAPE(p_real=real_price.loc[:, "Price"].values, p_pred=fc_DNN_ensemble.loc[:, "DNN Ensemble"].values): {0:5.2f}%'.
+      format(MAPE(p_real=real_price.loc[:, 'Price'].values,
+                  p_pred=fc_DNN_ensemble.loc[:, 'DNN Ensemble'].values) * 100))
 
-# Evaluating MAPE when input values are of shape (nprices,) 
-# instead of shape (nprices, 1)
-# Pandas Series
-MAPE(p_pred=fc_DNN_ensemble.loc[:, 'DNN Ensemble'], 
-     p_real=real_price.loc[:, 'Price']) * 100
-# Numpy arrays
-MAPE(p_pred=fc_DNN_ensemble.values.squeeze(), 
-     p_real=real_price.values.squeeze()) * 100
+# Evaluating MAPE when real day-ahead price and forecasts are both 2-dimensional (rows: n_days, columns: n_prices/n_day)
+# DataFrames
+print('MAPE(p_real=real_price_2D, p_pred=fc_DNN_ensemble_2D): {0:5.2f}%'.
+      format(MAPE(p_real=real_price_2D, p_pred=fc_DNN_ensemble_2D) * 100))
+
+# Evaluating MAPE when real day-ahead price and forecasts are both 2-dimensional (rows: n_days, columns: n_prices/n_day)
+# numpy arrays
+print('MAPE(p_real=real_price_2D.values.squeeze(), p_pred=fc_DNN_ensemble_2D.values.squeeze()): {0:5.2f}%'.
+      format(MAPE(p_real=real_price_2D.values.squeeze(), p_pred=fc_DNN_ensemble_2D.values.squeeze()) * 100))
 
 
 # We can also test situations where the MAPE will display errors
 
-# Evaluating MAPE when real price and forecasts are of different type (numpy.ndarray and pandas.DataFrame)
-MAPE(p_pred=fc_DNN_ensemble.values, p_real=real_price)
+# Evaluating MAPE when real day-ahead price and forecasts are of different object type
+# (numpy.ndarray and pandas.DataFrame)
+try:
+    print('MAPE: {0:5.2f}%'.format(MAPE(p_real=real_price, p_pred=fc_DNN_ensemble.values) * 100))
+except TypeError as e:
+    print("TypeError:", e)
 
-# Evaluating MAPE when real price and forecasts are of different type (pandas.Series and pandas.DataFrame)
-MAPE(p_pred=fc_DNN_ensemble, p_real=real_price.loc[:, 'Price'])
+# Evaluating MAPE when real day-ahead price and forecasts are of the different object type
+# (pandas.Series and pandas.DataFrame)
+try:
+    print('MAPE: {0:5.2f}%'.format(MAPE(p_real=real_price.loc[:, 'Price'], p_pred=fc_DNN_ensemble) * 100))
+except TypeError as e:
+    print("TypeError:", e)
 
-# Evaluating MAPE when real price and forecasts are both numpy arrays of different size
-MAPE(p_pred=fc_DNN_ensemble.values, p_real=real_price.values[1:])
+# Evaluating MAPE when real day-ahead price and forecasts are both numpy arrays but of different size
+try:
+    print('MAPE: {0:5.2f}%'.format(MAPE(p_real=real_price.values[1:], p_pred=fc_DNN_ensemble.values) * 100))
+except ValueError as e:
+    print("ValueError:", e)
 
-# Evaluating MAPE when real price and forecasts are both dataframes are of different size
-MAPE(p_pred=fc_DNN_ensemble.iloc[1:, :], p_real=real_price)
+# Evaluating MAPE when real day-ahead price and forecasts are both DataFrames but of different size
+try:
+    print('MAPE: {0:5.2f}%'.format(MAPE(p_real=real_price, p_pred=fc_DNN_ensemble.iloc[1:, :]) * 100))
+except ValueError as e:
+    print("ValueError:", e)

@@ -13,7 +13,7 @@ from epftoolbox.evaluation._ancillary_functions import _process_inputs_for_metri
 
 def sMAPE(p_real, p_pred):
 
-    """Function that computes the symmetric mean absolute percentage error (sMAPE) between two forecasts
+    """ Computes the symmetric mean absolute percentage error (sMAPE) between two forecasts
     
     Note that there are multiple versions of sMAPE, here we con-sider the most sensible 
     `one <https://robjhyndman.com/hyndsight/smape/>`_ :
@@ -42,7 +42,7 @@ def sMAPE(p_real, p_pred):
     Example
     -------
     >>> from epftoolbox.evaluation import sMAPE
-    >>> from epftoolbox.data import read_data
+    >>> from epftoolbox.data import read_and_split_data
     >>> import pandas as pd
     >>> 
     >>> # Download available forecast of the NP market available in the library repository
@@ -54,7 +54,7 @@ def sMAPE(p_real, p_pred):
     >>> forecast.index = pd.to_datetime(forecast.index)
     >>> 
     >>> # Reading data from the NP market
-    >>> _, df_test = read_data(path='.', dataset='NP', begin_test_date=forecast.index[0], 
+    >>> _, df_test = read_and_split_data(path='.', dataset='NP', begin_test_date=forecast.index[0], 
     ...                        end_test_date=forecast.index[-1])
     Test datasets: 2016-12-27 00:00:00 - 2018-12-24 23:00:00
     >>> 
@@ -64,14 +64,14 @@ def sMAPE(p_real, p_pred):
     >>> # Extracting real price and display
     >>> real_price = df_test.loc[:, ['Price']]
     >>> 
-    >>> # Building the same datasets with shape (ndays, n_prices/day) instead 
-    >>> # of shape (nprices, 1) and display
+    >>> # Building the same datasets with shape (n_days, n_prices/day) instead
+    >>> # of shape (n_prices, 1) and display
     >>> fc_DNN_ensemble_2D = pd.DataFrame(fc_DNN_ensemble.values.reshape(-1, 24), 
     ...                                   index=fc_DNN_ensemble.index[::24], 
-    ...                                   columns=['h' + str(hour) for hour in range(24)])
+    ...                                   columns=['h' + str(h) for h in range(24)])
     >>> real_price_2D = pd.DataFrame(real_price.values.reshape(-1, 24), 
     ...                              index=real_price.index[::24], 
-    ...                              columns=['h' + str(hour) for hour in range(24)])
+    ...                              columns=['h' + str(h) for h in range(24)])
     >>> fc_DNN_ensemble_2D.head()
                        h0         h1         h2  ...        h21        h22        h23
     2016-12-27  24.349676  23.127774  22.208617  ...  27.686771  27.045763  25.724071
@@ -91,8 +91,8 @@ def sMAPE(p_real, p_pred):
     >>> sMAPE(p_pred=fc_DNN_ensemble.values, p_real=real_price.values) * 100
     4.846295174735425
     >>> 
-    >>> # Evaluating sMAPE when input values are of shape (ndays, n_prices/day) instead 
-    >>> # of shape (nprices, 1)
+    >>> # Evaluating sMAPE when input values are of shape (n_days, n_prices/day) instead
+    >>> # of shape (n_prices, 1)
     >>> # Dataframes
     >>> sMAPE(p_pred=fc_DNN_ensemble_2D, p_real=real_price_2D) * 100
     4.846295174735425
@@ -100,8 +100,8 @@ def sMAPE(p_real, p_pred):
     >>> sMAPE(p_pred=fc_DNN_ensemble_2D.values, p_real=real_price_2D.values) * 100
     4.846295174735425
     >>> 
-    >>> # Evaluating sMAPE when input values are of shape (nprices,) 
-    >>> # instead of shape (nprices, 1)
+    >>> # Evaluating sMAPE when input values are of shape (n_prices,)
+    >>> # instead of shape (n_prices, 1)
     >>> # Pandas Series
     >>> sMAPE(p_pred=fc_DNN_ensemble.loc[:, 'DNN Ensemble'], 
     ...       p_real=real_price.loc[:, 'Price']) * 100

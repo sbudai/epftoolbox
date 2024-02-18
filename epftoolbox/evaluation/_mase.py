@@ -8,13 +8,14 @@ Function that implements the mean absolute scaled error (MASE) metric.
 
 
 import numpy as np
-from epftoolbox.evaluation._ancillary_functions import _process_inputs_for_metrics, naive_forecast, _transform_input_prices_for_naive_forecast
+from epftoolbox.evaluation._ancillary_functions import (_process_inputs_for_metrics, naive_forecast,
+                                                        _transform_input_prices_for_naive_forecast)
 from epftoolbox.evaluation import MAE
 
 
-def MASE(p_real, p_pred, p_real_in, m=None, freq='1H'):
+def MASE(p_real, p_pred, p_real_in, m=None, freq='1h'):
 
-    """Function that computes the mean absolute scaled error (MASE) between two forecasts:
+    """ Computes the mean absolute scaled error (MASE) between two forecasts:
     
     .. math:: 
         \\mathrm{MASE}_\\mathrm{m} = \\frac{1}{N}\\sum_{i=1}^N 
@@ -25,8 +26,8 @@ def MASE(p_real, p_pred, p_real_in, m=None, freq='1H'):
     dataset ``p_real_in`` and the :class:`naive_forecast` function with a seasonality index ``m``.
 
     If the datasets provided are numpy.ndarray objects, the function requires a ``freq`` argument specifying
-    the data frequency. The ``freq`` argument must take one of the following four values ``'1H'`` for 1 hour,
-    ``'30T'`` for 30 minutes, ``'15T'`` for 15 minutes, or ``'5T'`` for 5 minutes,  (these are the 
+    the data frequency. The ``freq`` argument must take one of the following four values ``'1h'`` for 1 hour,
+    ``'30min'`` for 30 minutes, ``'15min'`` for 15 minutes, or ``'5min'`` for 5 minutes,  (these are the
     four standard values in day-ahead electricity markets). 
     
     Also, if the datasets provided are numpy.ndarray objects, ``m`` has to be 24 or 168, i.e. the 
@@ -55,8 +56,8 @@ def MASE(p_real, p_pred, p_real_in, m=None, freq='1H'):
         for Saturday to Monday.    
     freq : str, optional
         Frequency of the data if ``p_real``, ``p_pred``, and ``p_real_in`` are numpy.ndarray objects.
-        It must take one of the following four values ``'1H'`` for 1 hour, ``'30T'`` for 30 minutes, 
-        ``'15T'`` for 15 minutes, or ``'5T'`` for 5 minutes,  (these are the four standard values in 
+        It must take one of the following four values ``'1h'`` for 1 hour, ``'30min'`` for 30 minutes,
+        ``'15min'`` for 15 minutes, or ``'5min'`` for 5 minutes, (these are the four standard values in
         day-ahead electricity markets). 
     Returns
     -------
@@ -66,7 +67,7 @@ def MASE(p_real, p_pred, p_real_in, m=None, freq='1H'):
     Example
     -------
     >>> from epftoolbox.evaluation import MASE
-    >>> from epftoolbox.data import read_data
+    >>> from epftoolbox.data import read_and_split_data
     >>> import pandas as pd
     >>> 
     >>> # Download available forecast of the NP market available in the library repository
@@ -78,8 +79,8 @@ def MASE(p_real, p_pred, p_real_in, m=None, freq='1H'):
     >>> forecast.index = pd.to_datetime(forecast.index)
     >>> 
     >>> # Reading data from the NP market
-    >>> df_train, df_test = read_data(path='.', dataset='NP', begin_test_date=forecast.index[0], 
-    ...                        end_test_date=forecast.index[-1])
+    >>> df_train, df_test = read_and_split_data(path='.', dataset='NP', begin_test_date=forecast.index[0], 
+    ...                               end_test_date=forecast.index[-1])
     Test datasets: 2016-12-27 00:00:00 - 2018-12-24 23:00:00
     >>> 
     >>> # Extracting forecast of DNN ensemble and display
@@ -89,17 +90,17 @@ def MASE(p_real, p_pred, p_real_in, m=None, freq='1H'):
     >>> real_price = df_test.loc[:, ['Price']]
     >>> real_price_insample = df_train.loc[:, ['Price']]
     >>> 
-    >>> # Building the same datasets with shape (ndays, n_prices/day) instead 
-    >>> # of shape (nprices, 1) and display
+    >>> # Building the same datasets with shape (n_days, n_prices/day) instead
+    >>> # of shape (n_prices, 1) and display
     >>> fc_DNN_ensemble_2D = pd.DataFrame(fc_DNN_ensemble.values.reshape(-1, 24), 
     ...                                   index=fc_DNN_ensemble.index[::24], 
-    ...                                   columns=['h' + str(hour) for hour in range(24)])
+    ...                                   columns=['h' + str(h) for h in range(24)])
     >>> real_price_2D = pd.DataFrame(real_price.values.reshape(-1, 24), 
     ...                              index=real_price.index[::24], 
-    ...                              columns=['h' + str(hour) for hour in range(24)])
+    ...                              columns=['h' + str(h) for h in range(24)])
     >>> real_price_insample_2D = pd.DataFrame(real_price_insample.values.reshape(-1, 24), 
     ...                              index=real_price_insample.index[::24], 
-    ...                              columns=['h' + str(hour) for hour in range(24)])
+    ...                              columns=['h' + str(h) for h in range(24)])
     >>> 
     >>> fc_DNN_ensemble_2D.head()
                        h0         h1         h2  ...        h21        h22        h23
@@ -119,22 +120,22 @@ def MASE(p_real, p_pred, p_real_in, m=None, freq='1H'):
     >>> 
     >>> # Evaluating MASE when real price and forecasts are both numpy arrays
     >>> MASE(p_pred=fc_DNN_ensemble.values, p_real=real_price.values, 
-    ...      p_real_in=real_price_insample.values, m='W', freq='1H')
+    ...      p_real_in=real_price_insample.values, m='W', freq='1h')
     0.5217886515713188
     >>> 
-    >>> # Evaluating MASE when input values are of shape (ndays, n_prices/day) instead 
-    >>> # of shape (nprices, 1)
+    >>> # Evaluating MASE when input values are of shape (n_days, n_prices/day) instead
+    >>> # of shape (n_prices, 1)
     >>> # Dataframes
     >>> MASE(p_pred=fc_DNN_ensemble_2D, p_real=real_price_2D, 
     ...      p_real_in=real_price_insample_2D, m='W')
     0.5217886515713188
     >>> # Numpy arrays
     >>> MASE(p_pred=fc_DNN_ensemble_2D.values, p_real=real_price_2D.values, 
-    ...      p_real_in=real_price_insample_2D.values, m='W', freq='1H')
+    ...      p_real_in=real_price_insample_2D.values, m='W', freq='1h')
     0.5217886515713188
     >>> 
-    >>> # Evaluating MASE when input values are of shape (nprices,) 
-    >>> # instead of shape (nprices, 1)
+    >>> # Evaluating MASE when input values are of shape (n_prices,)
+    >>> # instead of shape (n_prices, 1)
     >>> # Pandas Series
     >>> MASE(p_pred=fc_DNN_ensemble.loc[:, 'DNN Ensemble'], 
     ...      p_real=real_price.loc[:, 'Price'],
@@ -143,22 +144,22 @@ def MASE(p_real, p_pred, p_real_in, m=None, freq='1H'):
     >>> # Numpy arrays
     >>> MASE(p_pred=fc_DNN_ensemble.values.squeeze(), 
     ...      p_real=real_price.values.squeeze(), 
-    ...      p_real_in=real_price_insample.values.squeeze(), m='W', freq='1H')
+    ...      p_real_in=real_price_insample.values.squeeze(), m='W', freq='1h')
     0.5217886515713188
 
     """
 
     # Computing the MAE of the naive forecast
     # Pre-process prices to have the correct format
-    p_real_in = _transform_input_prices_for_naive_forecast(p_real_in, m, freq)
-    # Build naive forecast
-    p_pred_naive = naive_forecast(p_real_in, m=m)
-    # Select common time indices
-    p_real_in = p_real_in.loc[p_pred_naive.index]
+    p_real_in = _transform_input_prices_for_naive_forecast(p_real=p_real_in, m=m, freq=freq)
+    # Build seasonal naive forecast
+    p_pred_naive_in = naive_forecast(p_real=p_real_in, m=m, n_prices_day=24)
+    # Select common time indices of seasonal naive forecast and insample observed data
+    p_real_in = p_real_in.loc[p_pred_naive_in.index]
     # Computing naive MAE
-    MAE_naive_train = MAE(p_real_in, p_pred_naive)
+    MAE_naive_train = MAE(p_real=p_real_in, p_pred=p_pred_naive_in)
 
     # Checking if standard inputs are compatible
-    p_real, p_pred = _process_inputs_for_metrics(p_real, p_pred)
+    p_real, p_pred = _process_inputs_for_metrics(p_real=p_real, p_pred=p_pred)
 
     return np.mean(np.abs(p_real - p_pred) / MAE_naive_train)

@@ -11,7 +11,7 @@ from epftoolbox.evaluation._ancillary_functions import _process_inputs_for_metri
 
 
 def MAE(p_real, p_pred):
-    """Function that computes the mean absolute error (MAE) between two forecasts:
+    """ Computes the mean absolute error (MAE) between two forecasts:
 
     .. math:: 
         \\mathrm{MAE} = \\frac{1}{N}\\sum_{i=1}^N \\bigl|p_\\mathrm{real}[i]-p_\\mathrm{pred}[i]\\bigr|    
@@ -37,7 +37,7 @@ def MAE(p_real, p_pred):
     --------
 
     >>> from epftoolbox.evaluation import MAE
-    >>> from epftoolbox.data import read_data
+    >>> from epftoolbox.data import read_and_split_data
     >>> import pandas as pd
     >>> 
     >>> # Download available day-ahead electricity price forecast of
@@ -52,8 +52,8 @@ def MAE(p_real, p_pred):
     >>> 
     >>> # Reading the real day-ahead electricity price data of the Nord Pool market
     >>> # The scope period should be same as in forecasted data.
-    >>> _, df_test = read_data(path='.', dataset='NP', begin_test_date=forecast.index[0], 
-    ...                        end_test_date=forecast.index[-1])
+    >>> _, df_test = read_and_split_data(path='.', dataset='NP', begin_test_date=forecast.index[0], 
+    ...                                  end_test_date=forecast.index[-1])
     >>> # Test datasets: 2016-12-27 00:00:00 - 2018-12-24 23:00:00
     >>> 
     >>> # Extracting the day-ahead electricity price forecasts based on 'DNN Ensemble' model and display
@@ -87,22 +87,27 @@ def MAE(p_real, p_pred):
     >>> # Let's test the metric for different conditions
     >>> 
     >>> # Evaluating MAE when real day-ahead price and forecasts are both 1-dimensional dataframes
-    >>> print('MAE(p_pred=fc_DNN_ensemble, p_real=real_price): {0}'.format(MAE(p_pred=fc_DNN_ensemble, p_real=real_price)))
+    >>> print('MAE(p_pred=fc_DNN_ensemble, p_real=real_price): {0}'.
+    >>>       format(MAE(p_pred=fc_DNN_ensemble, p_real=real_price)))
     >>>
     >>> # Evaluating MAE when real day-ahead price and forecasts are both pandas Series
     >>> print('MAE(p_pred=fc_DNN_ensemble.loc[:, "DNN Ensemble"], p_real=real_price.loc[:, "Price"]): {0}'.
     >>>       format(MAE(p_pred=fc_DNN_ensemble.loc[:, 'DNN Ensemble'], p_real=real_price.loc[:, 'Price'])))
     >>>
     >>> # Evaluating MAE when real day-ahead price and forecasts are both 1-dimensional numpy arrays
-    >>> print('MAE(p_pred=fc_DNN_ensemble.loc[:, "DNN Ensemble"].values, p_real=real_price.loc[:, "Price"].values): {0}'.
-    >>>       format(MAE(p_pred=fc_DNN_ensemble.loc[:, 'DNN Ensemble'].values, p_real=real_price.loc[:, 'Price'].values)))
+    >>> print('MAE(p_pred=fc_DNN_ensemble.loc[:, "DNN Ensemble"].values,'
+    >>>       ' p_real=real_price.loc[:, "Price"].values): {0}'.
+    >>>       format(MAE(p_pred=fc_DNN_ensemble.loc[:, 'DNN Ensemble'].values,
+    >>>                  p_real=real_price.loc[:, 'Price'].values)))
     >>>
-    >>> # Evaluating MAE when real day-ahead price and forecasts are both 2-dimensional (rows: n_days, columns: n_prices/n_day)
+    >>> # Evaluating MAE when real day-ahead price and forecasts are both 2-dimensional
+    >>> # (rows: n_days, columns: n_prices/n_day)
     >>> # DataFrames
     >>> print('MAE(p_pred=fc_DNN_ensemble_2D, p_real=real_price_2D): {0}'.
     >>>       format(MAE(p_pred=fc_DNN_ensemble_2D, p_real=real_price_2D)))
     >>>
-    >>> # Evaluating MAE when real day-ahead price and forecasts are both 2-dimensional (rows: n_days, columns: n_prices/n_day)
+    >>> # Evaluating MAE when real day-ahead price and forecasts are both 2-dimensional
+    >>> # (rows: n_days, columns: n_prices/n_day)
     >>> # numpy arrays
     >>> print('MAE(p_pred=fc_DNN_ensemble_2D.values.squeeze(), p_real=real_price_2D.values.squeeze()): {0}'.
     >>>       format(MAE(p_pred=fc_DNN_ensemble_2D.values.squeeze(), p_real=real_price_2D.values.squeeze())))
@@ -110,6 +115,6 @@ def MAE(p_real, p_pred):
     """
 
     # Checking if inputs are compatible
-    p_real, p_pred = _process_inputs_for_metrics(p_real, p_pred)
+    p_real, p_pred = _process_inputs_for_metrics(p_real=p_real, p_pred=p_pred)
 
     return np.mean(np.abs(p_real - p_pred))

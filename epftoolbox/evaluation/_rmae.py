@@ -7,13 +7,14 @@ Function that implements the relative mean absolute error (rMAE) metric.
 # License: AGPL-3.0 License
 
 import numpy as np
-from epftoolbox.evaluation._ancillary_functions import _process_inputs_for_metrics, naive_forecast, _transform_input_prices_for_naive_forecast
+from epftoolbox.evaluation._ancillary_functions import (_process_inputs_for_metrics, naive_forecast,
+                                                        _transform_input_prices_for_naive_forecast)
 from epftoolbox.evaluation import MAE
 
 
-def rMAE(p_real, p_pred, m=None, freq='1H'):
+def rMAE(p_real, p_pred, m=None, freq='1h'):
 
-    """Function that computes the relative mean absolute error (rMAE) between two forecasts:
+    """ Computes the relative mean absolute error (rMAE) between two forecasts:
     
     .. math:: 
         \\mathrm{rMAE}_\\mathrm{m} = \\frac{1}{N}\\sum_{i=1}^N 
@@ -24,8 +25,8 @@ def rMAE(p_real, p_pred, m=None, freq='1H'):
     dataset ``p_real`` and the :class:`naive_forecast` function with a seasonality index ``m``.
 
     If the datasets provided are numpy.ndarray objects, the function requires a ``freq`` argument specifying
-    the data frequency. The ``freq`` argument must take one of the following four values ``'1H'`` for 1 hour,
-    ``'30T'`` for 30 minutes, ``'15T'`` for 15 minutes, or ``'5T'`` for 5 minutes,  (these are the 
+    the data frequency. The ``freq`` argument must take one of the following four values ``'1h'`` for 1 hour,
+    ``'30min'`` for 30 minutes, ``'15min'`` for 15 minutes, or ``'5min'`` for 5 minutes,  (these are the
     four standard values in day-ahead electricity markets). 
     
     Also, if the datasets provided are numpy.ndarray objects, ``m`` has to be ``'D'`` or ``'W'``, i.e. the 
@@ -52,8 +53,8 @@ def rMAE(p_real, p_pred, m=None, freq='1H'):
         for Saturday to Monday.    
     freq : str, optional
         Frequency of the data if ``p_real``, ``p_pred``, and ``p_real_in`` are numpy.ndarray objects.
-        It must take one of the following four values ``'1H'`` for 1 hour, ``'30T'`` for 30 minutes, 
-        ``'15T'`` for 15 minutes, or ``'5T'`` for 5 minutes,  (these are the four standard values in 
+        It must take one of the following four values ``'1h'`` for 1 hour, ``'30min'`` for 30 minutes,
+        ``'15min'`` for 15 minutes, or ``'5min'`` for 5 minutes,  (these are the four standard values in
         day-ahead electricity markets). If the shape of ``p_real`` is (ndays, n_prices_day), 
         freq should be the frequency of the columns not the daily frequency of the rows.    
     Returns
@@ -64,7 +65,7 @@ def rMAE(p_real, p_pred, m=None, freq='1H'):
     Example
     -------
     >>> from epftoolbox.evaluation import rMAE
-    >>> from epftoolbox.data import read_data
+    >>> from epftoolbox.data import read_and_split_data
     >>> import pandas as pd
     >>> 
     >>> # Download available forecast of the NP market available in the library repository
@@ -76,7 +77,7 @@ def rMAE(p_real, p_pred, m=None, freq='1H'):
     >>> forecast.index = pd.to_datetime(forecast.index)
     >>> 
     >>> # Reading data from the NP market
-    >>> _, df_test = read_data(path='.', dataset='NP', begin_test_date=forecast.index[0], 
+    >>> _, df_test = read_and_split_data(path='.', dataset='NP', begin_test_date=forecast.index[0], 
     ...                        end_test_date=forecast.index[-1])
     Test datasets: 2016-12-27 00:00:00 - 2018-12-24 23:00:00
     >>> 
@@ -86,14 +87,14 @@ def rMAE(p_real, p_pred, m=None, freq='1H'):
     >>> # Extracting real price and display
     >>> real_price = df_test.loc[:, ['Price']]
     >>> 
-    >>> # Building the same datasets with shape (ndays, n_prices/day) instead 
-    >>> # of shape (nprices, 1) and display
+    >>> # Building the same datasets with shape (n_days, n_prices/day) instead
+    >>> # of shape (n_prices, 1) and display
     >>> fc_DNN_ensemble_2D = pd.DataFrame(fc_DNN_ensemble.values.reshape(-1, 24), 
     ...                                   index=fc_DNN_ensemble.index[::24], 
-    ...                                   columns=['h' + str(hour) for hour in range(24)])
+    ...                                   columns=['h' + str(h) for h in range(24)])
     >>> real_price_2D = pd.DataFrame(real_price.values.reshape(-1, 24), 
     ...                              index=real_price.index[::24], 
-    ...                              columns=['h' + str(hour) for hour in range(24)])
+    ...                              columns=['h' + str(h) for h in range(24)])
     >>> fc_DNN_ensemble_2D.head()
                        h0         h1         h2  ...        h21        h22        h23
     2016-12-27  24.349676  23.127774  22.208617  ...  27.686771  27.045763  25.724071
@@ -111,27 +112,27 @@ def rMAE(p_real, p_pred, m=None, freq='1H'):
     0.5265639198107801
     >>> 
     >>> # Evaluating rMAE when real price and forecasts are both numpy arrays
-    >>> rMAE(p_pred=fc_DNN_ensemble.values, p_real=real_price.values, m='W', freq='1H')
+    >>> rMAE(p_pred=fc_DNN_ensemble.values, p_real=real_price.values, m='W', freq='1h')
     0.4031805447246898
     >>> 
-    >>> # Evaluating rMAE when input values are of shape (ndays, n_prices/day) instead 
-    >>> # of shape (nprices, 1)
+    >>> # Evaluating rMAE when input values are of shape (n_days, n_prices/day) instead
+    >>> # of shape (n_prices, 1)
     >>> # Dataframes
     >>> rMAE(p_pred=fc_DNN_ensemble_2D, p_real=real_price_2D, m='W')
     0.4031805447246898
     >>> # Numpy arrays
-    >>> rMAE(p_pred=fc_DNN_ensemble_2D.values, p_real=real_price_2D.values, m='W', freq='1H')
+    >>> rMAE(p_pred=fc_DNN_ensemble_2D.values, p_real=real_price_2D.values, m='W', freq='1h')
     0.4031805447246898
     >>> 
-    >>> # Evaluating rMAE when input values are of shape (nprices,) 
-    >>> # instead of shape (nprices, 1)
+    >>> # Evaluating rMAE when input values are of shape (n_prices,)
+    >>> # instead of shape (n_prices, 1)
     >>> # Pandas Series
     >>> rMAE(p_pred=fc_DNN_ensemble.loc[:, 'DNN Ensemble'], 
     ...      p_real=real_price.loc[:, 'Price'], m='W')
     0.4031805447246898
     >>> # Numpy arrays
     >>> rMAE(p_pred=fc_DNN_ensemble.values.squeeze(), 
-    ...      p_real=real_price.values.squeeze(), m='W', freq='1H')
+    ...      p_real=real_price.values.squeeze(), m='W', freq='1h')
     0.4031805447246898
     """
 
@@ -140,16 +141,15 @@ def rMAE(p_real, p_pred, m=None, freq='1H'):
 
     p_real_naive = p_real.copy()
     # Pre-process prices to have the correct format
-    p_real_naive = _transform_input_prices_for_naive_forecast(p_real_naive, m, freq)
+    p_real_naive = _transform_input_prices_for_naive_forecast(p_real=p_real_naive, m=m, freq=freq)
     # Build naive forecast
-    p_pred_naive = naive_forecast(p_real_naive, m=m)
+    p_pred_naive = naive_forecast(p_real=p_real_naive, m=m, n_prices_day=24)
     # Select common time indices
     p_real_naive = p_real_naive.loc[p_pred_naive.index]
     # Computing naive MAE
-    MAE_naive_train = MAE(p_real_naive, p_pred_naive)
+    MAE_naive_train = MAE(p_real=p_real_naive, p_pred=p_pred_naive)
     
     # Checking if standard inputs are compatible
-    p_real, p_pred = _process_inputs_for_metrics(p_real, p_pred)
+    p_real, p_pred = _process_inputs_for_metrics(p_real=p_real, p_pred=p_pred)
 
     return np.mean(np.abs(p_real - p_pred) / MAE_naive_train)
-

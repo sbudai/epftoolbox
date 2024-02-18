@@ -11,8 +11,7 @@ from epftoolbox.evaluation._ancillary_functions import _process_inputs_for_metri
 
 
 def MAPE(p_real, p_pred, noNaN=False):
-
-    """Function that computes the mean absolute percentage error (MAPE) between two forecasts:
+    """ Computes the mean absolute percentage error (MAPE) between two forecasts:
 
     .. math:: 
         \\mathrm{MAPE} = \\frac{1}{N}\\sum_{i=1}^N \\frac{\\bigl|p_\\mathrm{real}[i]−p_\\mathrm{pred}[i]\\bigr|}{
@@ -41,19 +40,19 @@ def MAPE(p_real, p_pred, noNaN=False):
     ----------
 
     >>> from epftoolbox.evaluation import MAPE
-    >>> from epftoolbox.data import read_data
+    >>> from epftoolbox.data import read_and_split_data
     >>> import pandas as pd
     >>> 
     >>> # Download available forecast of the NP market available in the library repository
     >>> # These forecasts accompany the original paper
-    >>> forecast = pd.read_csv('https://raw.githubusercontent.com/jeslago/epftoolbox/master/' + 
-    ...                       'forecasts/Forecasts_NP_DNN_LEAR_ensembles.csv', index_col=0)
+    >>> forecast = pd.read_csv('https://raw.githubusercontent.com/jeslago/epftoolbox/master/'
+    ...                        'forecasts/Forecasts_NP_DNN_LEAR_ensembles.csv', index_col=0)
     >>> 
     >>> # Transforming indices to datetime format
     >>> forecast.index = pd.to_datetime(forecast.index)
     >>> 
     >>> # Reading data from the NP market
-    >>> _, df_test = read_data(path='.', dataset='NP', begin_test_date=forecast.index[0], 
+    >>> _, df_test = read_and_split_data(path='.', dataset='NP', begin_test_date=forecast.index[0], 
     ...                        end_test_date=forecast.index[-1])
     Test datasets: 2016-12-27 00:00:00 - 2018-12-24 23:00:00
     >>> 
@@ -63,14 +62,14 @@ def MAPE(p_real, p_pred, noNaN=False):
     >>> # Extracting real price and display
     >>> real_price = df_test.loc[:, ['Price']]
     >>> 
-    >>> # Building the same datasets with shape (ndays, n_prices/day) instead 
-    >>> # of shape (nprices, 1) and display
+    >>> # Building the same datasets with shape (n_days, n_prices/day) instead
+    >>> # of shape (n_prices, 1) and display
     >>> fc_DNN_ensemble_2D = pd.DataFrame(fc_DNN_ensemble.values.reshape(-1, 24), 
     ...                                   index=fc_DNN_ensemble.index[::24], 
-    ...                                   columns=['h' + str(hour) for hour in range(24)])
+    ...                                   columns=['h' + str(h) for h in range(24)])
     >>> real_price_2D = pd.DataFrame(real_price.values.reshape(-1, 24), 
     ...                              index=real_price.index[::24], 
-    ...                              columns=['h' + str(hour) for hour in range(24)])
+    ...                              columns=['h' + str(h) for h in range(24)])
     >>> fc_DNN_ensemble_2D.head()
                        h0         h1         h2  ...        h21        h22        h23
     2016-12-27  24.349676  23.127774  22.208617  ...  27.686771  27.045763  25.724071
@@ -90,8 +89,8 @@ def MAPE(p_real, p_pred, noNaN=False):
     >>> MAPE(p_pred=fc_DNN_ensemble.values, p_real=real_price.values) * 100
     5.376051161768693
     >>> 
-    >>> # Evaluating MAPE when input values are of shape (ndays, n_prices/day) instead 
-    >>> # of shape (nprices, 1)
+    >>> # Evaluating MAPE when input values are of shape (n_days, n_prices/day) instead
+    >>> # of shape (n_prices, 1)
     >>> # Dataframes
     >>> MAPE(p_pred=fc_DNN_ensemble_2D, p_real=real_price_2D) * 100
     5.376051161768693
@@ -99,8 +98,8 @@ def MAPE(p_real, p_pred, noNaN=False):
     >>> MAPE(p_pred=fc_DNN_ensemble_2D.values, p_real=real_price_2D.values) * 100
     5.376051161768693
     >>> 
-    >>> # Evaluating MAPE when input values are of shape (nprices,) 
-    >>> # instead of shape (nprices, 1)
+    >>> # Evaluating MAPE when input values are of shape (n_prices,)
+    >>> # instead of shape (n_prices, 1)
     >>> # Pandas Series
     >>> MAPE(p_pred=fc_DNN_ensemble.loc[:, 'DNN Ensemble'], 
     ...      p_real=real_price.loc[:, 'Price']) * 100
