@@ -127,9 +127,9 @@ class DataScaler(object):
 
     Example
     --------
-    >>> from epftoolbox.data import read_data
+    >>> from epftoolbox.data import read_and_split_data
     >>> from epftoolbox.data import DataScaler
-    >>> df_train, df_test = read_data(path='.', dataset='PJM', begin_test_date='01-01-2016', end_test_date='01-02-2016')
+    >>> df_train, df_test = read_and_split_data(path='.', dataset='PJM', begin_test_date='01-01-2016', end_test_date='01-02-2016')
     Test datasets: 2016-01-01 00:00:00 - 2016-02-01 23:00:00
     >>> df_train.tail()
                              Price  Exogenous 1  Exogenous 2
@@ -289,9 +289,9 @@ def scaling(datasets, normalize):
     
     Example
     --------
-    >>> from epftoolbox.data import read_data
+    >>> from epftoolbox.data import read_and_split_data
     >>> from epftoolbox.data import scaling
-    >>> df_train, df_test = read_data(path='.', dataset='PJM', begin_test_date='01-01-2016', end_test_date='01-02-2016')
+    >>> df_train, df_test = read_and_split_data(path='.', dataset='PJM', begin_test_date='01-01-2016', end_test_date='01-02-2016')
     Test datasets: 2016-01-01 00:00:00 - 2016-02-01 23:00:00
     >>> df_train.tail()
                              Price  Exogenous 1  Exogenous 2
