@@ -12,7 +12,7 @@ from epftoolbox.models import hyperparameter_optimizer
 # Number of layers in DNN
 nlayers = 2
 
-# Market under study. If it not one of the standard ones, the file name
+# Market under study. If it is not one of the standard ones, the file name
 # has to be provided, where the file has to be a csv file
 dataset = 'NP'
 
@@ -59,4 +59,3 @@ hyperparameter_optimizer(path_datasets_folder=path_datasets_folder,
                          years_test=years_test, calibration_window=calibration_window, 
                          shuffle_train=shuffle_train, data_augmentation=0, experiment_id=experiment_id,
                          begin_test_date=begin_test_date, end_test_date=end_test_date)
-
