@@ -11,7 +11,7 @@ import numpy as np
 import argparse
 import os
 
-from epftoolbox.data import read_data
+from epftoolbox.data import read_and_split_data
 from epftoolbox.evaluation import MAE, sMAPE
 from epftoolbox.models import DNN
 
@@ -78,8 +78,8 @@ path_recalibration_folder = os.path.join('.', 'experimental_files')
 path_hyperparameter_folder = os.path.join('.', 'experimental_files')
     
 # Defining train and testing data
-df_train, df_test = read_data(dataset=dataset, years_test=years_test, path=path_datasets_folder,
-                              begin_test_date=begin_test_date, end_test_date=end_test_date)
+df_train, df_test = read_and_split_data(dataset=dataset, years_test=years_test, path=path_datasets_folder,
+                                        begin_test_date=begin_test_date, end_test_date=end_test_date)
 
 # Defining unique name to save the forecast
 forecast_file_name = 'fc_nl' + str(nlayers) + '_dat' + str(dataset) + \
