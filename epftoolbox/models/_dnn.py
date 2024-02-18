@@ -23,7 +23,7 @@ import tensorflow.keras.backend as K
 
 from epftoolbox.evaluation import MAE, sMAPE
 from epftoolbox.data import scaling
-from epftoolbox.data import read_data
+from epftoolbox.data import read_and_split_data
 
 
 class DNNModel(object):
@@ -70,8 +70,8 @@ class DNNModel(object):
         Name of the optimizer when training the DNN. See the `keras documentation <https://keras.io/>`_ 
         for a list of optimizers.
     activation : str, optional
-        Name of the activation function in the hidden layers. See the `keras documentation <https://keras.io/>`_ for a list
-        of activation function.
+        Name of the activation function in the hidden layers. See the `keras documentation <https://keras.io/>`_
+        for a list of activation function.
     initializer : str, optional
         Name of the initializer function for the weights of the neural network. See the 
         `keras documentation <https://keras.io/>`_ for a list of initializer functions.
@@ -685,8 +685,8 @@ def evaluate_dnn_in_test_dataset(experiment_id, path_datasets_folder=os.path.joi
         os.makedirs(path_recalibration_folder)
 
     # Defining train and testing data
-    df_train, df_test = read_data(dataset=dataset, years_test=years_test, path=path_datasets_folder,
-                                  begin_test_date=begin_test_date, end_test_date=end_test_date)
+    df_train, df_test = read_and_split_data(dataset=dataset, years_test=years_test, path=path_datasets_folder,
+                                            begin_test_date=begin_test_date, end_test_date=end_test_date)
     # Defining unique name to save the forecast
 
     forecast_file_name = 'DNN_forecast_nl' + str(nlayers) + '_dat' + str(dataset) + \
@@ -705,7 +705,7 @@ def evaluate_dnn_in_test_dataset(experiment_id, path_datasets_folder=os.path.joi
     # existing files and print metrics 
     if not new_recalibration:
         # Import existinf forecasting file
-        forecast = pd.read_csv(forecast_file_path, index_col=0)
+        forecast = pd.read_csv(filepath_or_buffer=forecast_file_path, index_col=0)
         forecast.index = pd.to_datetime(forecast.index)
 
         # Reading dates to still be forecasted by checking NaN values
@@ -809,7 +809,7 @@ def format_best_trial(best_trial):
 
 def _build_and_split_XYs(dfTrain, features, shuffle_train, n_exogenous_inputs, dfTest=None, percentage_val=0.25,
                         date_test=None, hyperoptimization=False, data_augmentation=False):
-    """Method to buil the X,Y pairs for training/test DNN models using dataframes and a list of
+    """Method to build the X,Y pairs for training/test DNN models using dataframes and a list of
     the selected inputs
     
     Parameters
@@ -873,15 +873,15 @@ def _build_and_split_XYs(dfTrain, features, shuffle_train, n_exogenous_inputs, d
 
     # We extract the prediction dates/days. For the regular case, 
     # it is just the index resample to 24 so we have a date per day.
-    # For the multiple datapoints per day, we have as many dates as indexs
+    # For the multiple datapoints per day, we have as many dates as indices
     if data_augmentation:
-        predDatesTrain = indexTrain.round('1H')
+        predDatesTrain = indexTrain.round('1h')
     else:
-        predDatesTrain = indexTrain.round('1H')[::24]            
+        predDatesTrain = indexTrain.round('1h')[::24]
             
-    predDatesTest = indexTest.round('1H')[::24]
+    predDatesTest = indexTest.round('1h')[::24]
 
-    # We create dataframe where the index is the time where a prediction is made
+    # We create dataframe where the index is the time when a prediction is made
     # and the columns is the horizons of the prediction
     indexTrain = pd.DataFrame(index=predDatesTrain, columns=['h' + str(hour) for hour in range(24)])
     indexTest = pd.DataFrame(index=predDatesTest, columns=['h' + str(hour) for hour in range(24)])
@@ -889,7 +889,7 @@ def _build_and_split_XYs(dfTrain, features, shuffle_train, n_exogenous_inputs, d
         indexTrain.loc[:, 'h' + str(hour)] = indexTrain.index + pd.Timedelta(hours=hour)
         indexTest.loc[:, 'h' + str(hour)] = indexTest.index + pd.Timedelta(hours=hour)
 
-    # If we consider 24 predictions per day, the last 23 indexs cannot be used as there is not data
+    # If we consider 24 predictions per day, the last 23 indices cannot be used as there is not data
     # for that horizon:
     if data_augmentation:
         indexTrain = indexTrain.iloc[:-23]
@@ -914,7 +914,7 @@ def _build_and_split_XYs(dfTrain, features, shuffle_train, n_exogenous_inputs, d
         # For each possible past day where prices can be included
         for past_day in [1, 2, 3, 7]:
 
-            # We define the corresponding past time indexs 
+            # We define the corresponding past time indices
             pastIndexTrain = pd.to_datetime(indexTrain.loc[:, 'h' + str(hour)].values) - \
                 pd.Timedelta(hours=24 * past_day)
             pastIndexTest = pd.to_datetime(indexTest.loc[:, 'h' + str(hour)].values) - \
