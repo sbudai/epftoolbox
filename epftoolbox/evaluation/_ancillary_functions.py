@@ -56,7 +56,10 @@ def _process_inputs_for_metrics(p_real: any, p_pred: any) -> tuple:
 
 
 def naive_forecast(p_real, m=None, n_prices_day=24):
-    """Function to build the naive forecast for electricity price forecasting
+    """ Function to build the naive forecast for electricity price forecasting.
+
+    The seasonal naive forecasted values are equal to the last observed value from the same season.
+    (The real observed value from the previous day or week.)
     
     The function is used to compute the accuracy metrics MASE and RMAE
         
@@ -81,50 +84,57 @@ def naive_forecast(p_real, m=None, n_prices_day=24):
 
     # Init the naive forecast
     if m is None or m == 'W':
-        index = p_real.index[n_prices_day * 7:]
-        Y_pred = pd.DataFrame(index=index, columns=p_real.columns)
+        # remove the first 7 days from among the indices
+        # index = p_real.index[n_prices_day * 7:]
+        empty_frame = p_real[n_prices_day * 7:]
     else:
-        index = p_real.index[n_prices_day:]
-        Y_pred = pd.DataFrame(index=index, columns=p_real.columns)
+        # remove the first 1 day from among the indices
+        # index = p_real.index[n_prices_day:]
+        empty_frame = p_real[n_prices_day * 7:]
+
+    # create an empty result DataFrame with the new indices
+    # y_pred = pd.DataFrame(index=index, columns=p_real.columns)
+    y_pred = pd.DataFrame().reindex_like(empty_frame)
 
     # If m is none the standard naive for EPF is built
     if m is None:
 
         # Monday we have a naive forecast using daily seasonality
-        indices_mon = Y_pred.index[Y_pred.index.dayofweek == 0]
-        Y_pred.loc[indices_mon, :] = p_real.loc[indices_mon - pd.Timedelta(days=7), :].values
+        indices_mon = y_pred.index[y_pred.index.dayofweek == 0]
+        y_pred.loc[indices_mon, :] = p_real.loc[indices_mon - pd.Timedelta(days=7), :].values.astype(float)
 
         # Tuesdays we have a naive forecast using daily seasonality
-        indices_tue = Y_pred.index[Y_pred.index.dayofweek == 1]
-        Y_pred.loc[indices_tue, :] = p_real.loc[indices_tue - pd.Timedelta(days=1), :].values
+        indices_tue = y_pred.index[y_pred.index.dayofweek == 1]
+        y_pred.loc[indices_tue, :] = p_real.loc[indices_tue - pd.Timedelta(days=1), :].values.astype(float)
 
         # Wednesday we have a naive forecast using daily seasonality
-        indices_wed = Y_pred.index[Y_pred.index.dayofweek == 2]
-        Y_pred.loc[indices_wed, :] = p_real.loc[indices_wed - pd.Timedelta(days=1), :].values
+        indices_wed = y_pred.index[y_pred.index.dayofweek == 2]
+        y_pred.loc[indices_wed, :] = p_real.loc[indices_wed - pd.Timedelta(days=1), :].values.astype(float)
 
         # Thursday we have a naive forecast using daily seasonality
-        indices_thu = Y_pred.index[Y_pred.index.dayofweek == 3]
-        Y_pred.loc[indices_thu, :] = p_real.loc[indices_thu - pd.Timedelta(days=1), :].values
+        indices_thu = y_pred.index[y_pred.index.dayofweek == 3]
+        y_pred.loc[indices_thu, :] = p_real.loc[indices_thu - pd.Timedelta(days=1), :].values.astype(float)
 
         # Friday we have a naive forecast using daily seasonality
-        indices_fri = Y_pred.index[Y_pred.index.dayofweek == 4]
-        Y_pred.loc[indices_fri, :] = p_real.loc[indices_fri - pd.Timedelta(days=1), :].values
+        indices_fri = y_pred.index[y_pred.index.dayofweek == 4]
+        y_pred.loc[indices_fri, :] = p_real.loc[indices_fri - pd.Timedelta(days=1), :].values.astype(float)
 
         # Saturday we have a naive forecast using weekly seasonality
-        indices_sat = Y_pred.index[Y_pred.index.dayofweek == 5]
-        Y_pred.loc[indices_sat, :] = p_real.loc[indices_sat - pd.Timedelta(days=7), :].values
+        indices_sat = y_pred.index[y_pred.index.dayofweek == 5]
+        y_pred.loc[indices_sat, :] = p_real.loc[indices_sat - pd.Timedelta(days=7), :].values.astype(float)
 
         # Sunday we have a naive forecast using weekly seasonality
-        indices_sun = Y_pred.index[Y_pred.index.dayofweek == 6]
-        Y_pred.loc[indices_sun, :] = p_real.loc[indices_sun - pd.Timedelta(days=7), :].values
+        indices_sun = y_pred.index[y_pred.index.dayofweek == 6]
+        y_pred.loc[indices_sun, :] = p_real.loc[indices_sun - pd.Timedelta(days=7), :].values.astype(float)
 
-    # If m is either 24 or 168 naive forecast simply built using a seasonal naive forecast
+    # If m is either 'D' or 'W', then naive forecast simply built using a seasonal naive forecast
+    # by filling up the empty result DataFrame with accordingly shifted values.
     elif m == 'D':
-        Y_pred.loc[:, :] = p_real.loc[Y_pred.index - pd.Timedelta(days=1)].values
+        y_pred.loc[:, :] = p_real.loc[y_pred.index - pd.Timedelta(days=1)].values.astype(float)
     elif m == 'W':
-        Y_pred.loc[:, :] = p_real.loc[Y_pred.index - pd.Timedelta(days=7)].values
+        y_pred.loc[:, :] = p_real.loc[y_pred.index - pd.Timedelta(days=7)].values.astype(float)
 
-    return Y_pred
+    return y_pred
 
 
 def _transform_input_prices_for_naive_forecast(p_real, m, freq):
@@ -142,8 +152,8 @@ def _transform_input_prices_for_naive_forecast(p_real, m, freq):
         for Saturday to Monday.
     freq : str
         Frequency of the data if ``p_real`` are numpy.ndarray objects.
-        It must take one of the following four values ``'1H'`` for 1 hour, ``'30T'`` for 30 minutes, 
-        ``'15T'`` for 15 minutes, or ``'5T'`` for 5 minutes,  (these are the four standard values in 
+        It must take one of the following four values ``'1h'`` for 1 hour, ``'30min'`` for 30 minutes,
+        ``'15min'`` for 15 minutes, or ``'5min'`` for 5 minutes,  (these are the four standard values in
         day-ahead electricity markets). If the shape of ``p_real`` is (n_days, n_prices_day),
         freq should be the frequency of the columns not the daily frequency of the rows.    
     Returns
@@ -154,7 +164,7 @@ def _transform_input_prices_for_naive_forecast(p_real, m, freq):
 
     # Ensure that m value is correct
     if m not in ['D', 'W', None]: 
-        raise ValueError('m argument has to be D, W, or None. Current values is {}'.format(m))    
+        raise ValueError('m argument has to be D, W, or None. Current values is {}'.format(m))
 
     # Check that input data is not numpy.ndarray and naive forecast is standard
     if m is None and not isinstance(p_real, pd.DataFrame) and not isinstance(p_real, pd.Series):
@@ -162,7 +172,7 @@ def _transform_input_prices_for_naive_forecast(p_real, m, freq):
                         'data has to be pandas.DataFrame object.')
 
     # Defining number of prices per day depending on frequency
-    n_prices_day = {'1H': 24, '30T': 48, '15T': 96, '5T': 288, '1T': 1440}[freq]
+    n_prices_day = {'1h': 24, '30min': 48, '15min': 96, '5min': 288, '1min': 1440}[freq]
 
     # If numpy arrays are used, ensure that there is integer number of days in the dataset
     if isinstance(p_real, np.ndarray) and p_real.size % n_prices_day != 0:
