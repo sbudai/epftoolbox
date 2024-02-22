@@ -1,12 +1,13 @@
 import matplotlib 
 import numpy as np
 
-red = np.concatenate([np.linspace(0, 1, 50), np.linspace(1, 0, 50)[1:]])
-green = np.concatenate([np.linspace(0.5, 1, 50), np.linspace(1, 0, 50)[1:]])
+red = np.concatenate([np.linspace(start=0, stop=1, num=50), np.linspace(start=1, stop=0, num=50)[1:]])
+green = np.concatenate([np.linspace(start=0.5, stop=1, num=50), np.linspace(start=1, stop=0, num=50)[1:]])
 blue = np.zeros(99)
 
 rgb_color_map = np.concatenate([red.reshape(-1, 1), green.reshape(-1, 1), 
-                                blue.reshape(-1, 1)], axis=1)
+                                blue.reshape(-1, 1)],
+                               axis=1)
 
 color_map_epf = [[0, 0.5120, 0],
                  [0.0244, 0.5569, 0],
@@ -97,3 +98,4 @@ color_map_epf = [[0, 0.5120, 0],
 
 # Defining color map
 color_map_epf = matplotlib.colors.ListedColormap(color_map_epf)
+
