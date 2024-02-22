@@ -17,14 +17,14 @@ import requests
 
 
 def read_and_split_data(path=os.path.join('.', 'datasets'), dataset='PJM', response='Zonal COMED price',
-                        years_test=2, begin_test_date=None, end_test_date=None) -> tuple[pd.DataFrame, pd.DataFrame]:
+                        years_test=2, begin_test_date=None, end_test_date=None):
     """ Import the day-ahead electricity price data_ supplemented with exogenous explanatory variables,
     and provides a split between training and testing dataset based on the related arguments provided.
     It also renames the columns of the training and testing dataset to match the requirements of the
     current module's prediction models.
     Namely, assuming that there are N exogenous explanatory variable inputs,
     the columns of the resulting dataframes will be naTest datasetsmed as
-    ['Price', 'Exogenous 1', 'Exogenous 2', ..., 'Exogenous N'].
+    ['Price', 'Exogenous_1', 'Exogenous_2', ..., 'Exogenous_N'].
 
     If `dataset` is one of the online available standard market datasets of the study,
     such as "PJM", "NP", "BE", "FR" or "DE", the function checks
@@ -45,18 +45,23 @@ def read_and_split_data(path=os.path.join('.', 'datasets'), dataset='PJM', respo
                 Name of the file (w/o "csv" extension) containing the input dataset.
             response : str
                 Name of the column in the input dataset that denotes the response variable.
+                PJM - 'Zonal COMED price'
+                NP - 'Price'
+                BE - 'Prices'
+                FR - 'Prices'
+                DE - 'Price'
             years_test : int
                 Optional parameter to set the number of years of the being test dataset,
                 counting back from the end of the input dataset.
                 Note that a year is considered to be 364 days.
                 It is only used if the arguments `begin_test_date` and `end_test_date` are not provided.
-            begin_test_date : datetime | str
+            begin_test_date : datetime | str | None
                 Optional parameter to select the test dataset.
                 Used in combination with the argument `end_test_date`.
                 If either of them is not provided, the test dataset will be split using the `years_test` argument.
                 The `begin_test_date` should either be a string with the following format "%d/%m/%Y 00:00",
                 or a datetime object.
-            end_test_date : datetime | str
+            end_test_date : datetime | str | None
                 Optional parameter to select the test dataset.
                 This value may be earlier than the last timestamp in the input dataset.
                 Used in combination with the argument `begin_test_date`.
@@ -65,7 +70,7 @@ def read_and_split_data(path=os.path.join('.', 'datasets'), dataset='PJM', respo
                 or a datetime object.
         Returns
         -------
-            pandas.DataFrame, pandas.DataFrame
+            tuple[pandas.DataFrame, pandas.DataFrame]
                 Training dataset, testing dataset
 
         Example
@@ -82,7 +87,7 @@ def read_and_split_data(path=os.path.join('.', 'datasets'), dataset='PJM', respo
             Testing dataset period: 2016-01-01 00:00:00 - 2016-02-01 23:00:00
             >>> print("df_train:", df_train, sep="\\n")
             df_train:
-                                     Price  Exogenous 1  Exogenous 2
+                                     Price  Exogenous_1  Exogenous_2
             Date
             2013-01-01 00:00:00  25.464211      85049.0      11509.0
             2013-01-01 01:00:00  23.554578      82128.0      10942.0
@@ -100,7 +105,7 @@ def read_and_split_data(path=os.path.join('.', 'datasets'), dataset='PJM', respo
 
             >>> print("df_test:", df_test, sep="\\n")
             df_test:
-                                     Price  Exogenous 1  Exogenous 2
+                                     Price  Exogenous_1  Exogenous_2
             Date
             2016-01-01 00:00:00  20.341321      76840.0      10406.0
             2016-01-01 01:00:00  19.462741      74819.0      10075.0
@@ -155,7 +160,7 @@ def read_and_split_data(path=os.path.join('.', 'datasets'), dataset='PJM', respo
     # rename all the columns accordingly
     df_.rename(columns={all_columns[i]: 'Price' for i in response_index},
                inplace=True)
-    df_.rename(columns={all_columns[i]: 'Exogenous {0}'.format(j + 1) for j, i in enumerate(exogen_indices)},
+    df_.rename(columns={all_columns[i]: 'Exogenous_{0}'.format(j + 1) for j, i in enumerate(exogen_indices)},
                inplace=True)
 
     # The training and test datasets can be defined by providing a number of years for testing
@@ -223,12 +228,12 @@ def read_and_split_data(path=os.path.join('.', 'datasets'), dataset='PJM', respo
 
 if __name__ == '__main__':
     df_train, df_test = read_and_split_data(
-        path=os.path.join('..', '..', 'datasets'),
-        dataset='PJM',
-        response='Zonal COMED price',
-        # years_test=2,
-        begin_test_date="01/01/2016 00:00",
-        end_test_date="01/02/2016 23:00",
+        path=os.path.join('..', '..', 'examples', 'datasets'),
+        dataset='DE',
+        response='Price',
+        years_test=2,
+        # begin_test_date="01/01/2016 00:00",
+        # end_test_date="01/02/2016 23:00",
     )
     print("df_train:", df_train, sep="\n")
     print("df_test:", df_test, sep="\n")
