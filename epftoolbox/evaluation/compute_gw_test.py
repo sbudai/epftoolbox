@@ -8,7 +8,7 @@ import cmap
 from gw import gwtest
 
 def mean_daily_errors(forecast, price):
-    return np.mean(np.abs(forecast - price), axis=1)
+    return np.mean(a=np.abs(forecast - price), axis=1)
 
 dataset = 'PJM'
 
