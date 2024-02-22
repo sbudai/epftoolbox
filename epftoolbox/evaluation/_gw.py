@@ -131,7 +131,6 @@ def GW(p_real, p_pred_1, p_pred_2, norm=1, version='univariate'):
         >>> print(multi_p.round(decimals=8))
         0.08663576
     """
-
     # Checking that all time series have the same shape
     if p_real.shape != p_pred_1.shape or p_real.shape != p_pred_2.shape:
         raise ValueError('The three time series must have the same shape')
@@ -216,9 +215,9 @@ def plot_multivariate_GW_test(real_price, forecasts, norm=1, title='GW test', sa
     
     Parameters
     ----------
-        real_price : pd.DataFrame
+        real_price : pandas.DataFrame
             Dataframe that contains the real prices
-        forecasts : pd.DataFrame
+        forecasts : pandas.DataFrame
             Dataframe that contains the forecasts of different models. The column names are the
             forecast/model names. The number of datapoints should equal the number of datapoints
             in ``real_price``.
