@@ -125,6 +125,6 @@ venv.bak/
 dmypy.json
 
 # data files
-datasets/
-experimental_files/
-forecasts/
+datasets/*
+experimental_files/*
+forecasts/*
