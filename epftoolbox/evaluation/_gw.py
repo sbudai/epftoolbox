@@ -1,163 +1,212 @@
-'''
-Functions to compute and plot the univariate and multivariate versions of the
-Giacomini-White (GW) test for Conditional Predictive Ability
-'''
+"""
+Functions to compute and plot the univariate and multivariate versions of
+the one-sided version of Giacomini-White (GW) test for Conditional Predictive Ability
+"""
+
+# Author: Jesus Lago
+
+# License: AGPL-3.0 License
 
 import numpy as np
-import scipy
 from scipy import stats
 import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import os
+
 
 def GW(p_real, p_pred_1, p_pred_2, norm=1, version='univariate'):
-    """Perform the one-sided GW test
+    """ Perform the one-sided Giacomini-White test.
     
-    The test compares the Conditional Predictive Accuracy of two forecasts
-    ``p_pred_1`` and ``p_pred_2``. The null H0 is that the CPA of errors ``p_pred_1``
-    is higher (better) or equal to the errors of ``p_pred_2`` vs. the alternative H1
-    that the CPA of ``p_pred_2`` is higher. Rejecting H0 means that the forecasts
-    ``p_pred_2`` are significantly more accurate than forecasts ``p_pred_1``.
-    (Note that this is an informal definition. For a formal one we refer 
+    The test compares whether there is a difference in terms of Conditional Predictive Accuracy
+    between the two forecasts ``p_pred_1`` and ``p_pred_2``.
+
+    In particular, the one-sided GW test evaluates the null hypothesis versus the alternative one.
+    H0 - the CPA errors of ``p_pred_1`` are higher or equal (better) than the CPA of ``p_pred_2``.
+    H1 - the CPA errors of ``p_pred_1`` are smaller (worse) than the CPA of ``p_pred_2``.
+    
+    Rejecting the H0 (p-value < 5%) means that the forecast ``p_pred_2`` is significantly more accurate
+    than forecast ``p_pred_1``. (Note that this is an informal definition. For a formal one we refer to
     `here <https://epftoolbox.readthedocs.io/en/latest/modules/cite.html>`_)
 
+    Two versions of the test are possible:
+
+        1. A ``univariate`` version with as many independent tests performed as many prices are per day,
+        i.e., 24 tests in most day-ahead electricity markets.
+
+        2. A multivariate version with the test performed jointly for all hours using the multivariate
+        loss differential series (see this `article <https://epftoolbox.readthedocs.io/en/latest/modules/cite.html>`_
+        for details).
 
     Parameters
     ----------
-    p_real : numpy.ndarray
-        Array of shape :math:`(n_\\mathrm{days}, n_\\mathrm{prices/day})` representing the real market
-        prices
-    p_pred_1 : TYPE
-        Array of shape :math:`(n_\\mathrm{days}, n_\\mathrm{prices/day})` representing the first forecast
-    p_pred_2 : TYPE
-        Array of shape :math:`(n_\\mathrm{days}, n_\\mathrm{prices/day})` representing the second forecast
-    norm : int, optional
-        Norm used to compute the loss differential series. At the moment, this value must either
-        be 1 (for the norm-1) or 2 (for the norm-2).
-    version : str, optional
-        Version of the test as defined in
-        `here <https://epftoolbox.readthedocs.io/en/latest/modules/cite.html>`_. It can have two values:
-        ``'univariate'`` or ``'multivariate'``
+        p_real : numpy.ndarray
+            Array of shape :math:`(n_days, n_prices/day)` representing the real market
+            prices
+        p_pred_1 : numpy.ndarray
+            Array of shape :math:`(n_days, n_prices/day)` representing the first forecast
+        p_pred_2 : numpy.ndarray
+            Array of shape :math:`(n_days, n_prices/day)` representing the second forecast
+        norm : int
+            Norm used to compute the loss differential series. At the moment, this value must either
+            be 1 (np.abs(loss1) - np.abs(loss2)) or 2 (loss1**2 - loss2**2).
+        version : str
+            Version of the test as defined in `here <https://epftoolbox.readthedocs.io/en/latest/modules/cite.html>`_.
+            It can have two values:
+                - ``'univariate``
+                - ``'multivariate``
     Returns
     -------
-    float, numpy.ndarray
-        The p-value after performing the test. It is a float in the case of the multivariate test
-        and a numpy array with a p-value per hour for the univariate test
+        float | np.ndarray
+            The p-value(s) after performing the test. Either it is one p-value value in the case
+            of the ``multivariate`` test, or a numpy.ndarray of 24 p-values for the ``univariate`` test
 
     Example
     -------
-    >>> from epftoolbox.evaluation import GW
-    >>> from epftoolbox.data import read_and_split_data
-    >>> import pandas as pd
-    >>> 
-    >>> # Generating forecasts of multiple models
-    >>> 
-    >>> # Download available forecast of the NP market available in the library repository
-    >>> # These forecasts accompany the original paper
-    >>> forecasts = pd.read_csv('https://raw.githubusercontent.com/jeslago/epftoolbox/master/' + 
-    ...                       'forecasts/Forecasts_NP_DNN_LEAR_ensembles.csv', index_col=0)
-    >>> 
-    >>> # Deleting the real price field as it the actual real price and not a forecast
-    >>> del forecasts['Real price']
-    >>> 
-    >>> # Transforming indices to datetime format
-    >>> forecasts.index = pd.to_datetime(forecasts.index)
-    >>> 
-    >>> # Extracting the real prices from the market
-    >>> _, df_test = read_and_split_data(path='.', dataset='NP', begin_test_date=forecasts.index[0], 
-    ...                        end_test_date=forecasts.index[-1])
-    Test datasets: 2016-12-27 00:00:00 - 2018-12-24 23:00:00
-    >>> 
-    >>> real_price = df_test.loc[:, ['Price']]
-    >>> 
-    >>> # Testing the univariate GW version on an ensemble of DNN models versus an ensemble
-    >>> # of LEAR models
-    >>> GW(p_real=real_price.values.reshape(-1, 24), 
-    ...     p_pred_1=forecasts.loc[:, 'LEAR Ensemble'].values.reshape(-1, 24), 
-    ...     p_pred_2=forecasts.loc[:, 'DNN Ensemble'].values.reshape(-1, 24), 
-    ...     norm=1, version='univariate')
-    array([1.00000000e+00, 1.00000000e+00, 1.00000000e+00, 1.00000000e+00,
-           1.00000000e+00, 1.00000000e+00, 1.03217562e-01, 2.63206239e-03,
-           5.23325510e-03, 5.90845414e-04, 6.55116487e-03, 9.85034605e-03,
-           3.34250412e-02, 1.80798591e-02, 2.74761848e-02, 3.19436776e-02,
-           8.39512169e-04, 2.11907847e-01, 5.79718600e-02, 8.73956638e-03,
-           4.30521699e-01, 2.67395381e-01, 6.33448562e-01, 1.99826993e-01])
-    >>> 
-    >>> # Testing the multivariate GW version
-    >>> GW(p_real=real_price.values.reshape(-1, 24), 
-    ...     p_pred_1=forecasts.loc[:, 'LEAR Ensemble'].values.reshape(-1, 24), 
-    ...     p_pred_2=forecasts.loc[:, 'DNN Ensemble'].values.reshape(-1, 24), 
-    ...     norm=1, version='multivariate')
-    0.017598166936843906
+        >>> from epftoolbox.evaluation import GW
+        >>> from epftoolbox.data import read_and_split_data
+        >>> import pandas as pd
+        >>>
+        >>> # Generating forecasts of multiple models
+        >>>
+        >>> # Download available forecast of the NP market available in the library repository
+        >>> # These forecasts accompany the original paper
+        >>> forecasts = pd.read_csv('https://raw.githubusercontent.com/jeslago/epftoolbox/master/'
+        ...                         'forecasts/Forecasts_NP_DNN_LEAR_ensembles.csv', index_col=0)
+        >>>
+        >>> # Deleting the real price field as it the actual real price and not a forecast
+        >>> del forecasts['Real price']
+        >>>
+        >>> # Transforming indices to datetime format
+        >>> forecasts.index = pd.to_datetime(forecasts.index)
+        >>>
+        >>> # Extracting the real prices from the market
+        >>> _, df_test = read_and_split_data(path='../../examples/datasets', dataset='NP', response='Price',
+        ...                                  begin_test_date=forecasts.index[0],
+        ...                                  end_test_date=forecasts.index[-1])
+        Training dataset period: 2013-01-01 00:00:00 - 2016-12-26 23:00:00
+        Testing dataset period: 2016-12-27 00:00:00 - 2018-12-24 23:00:00
+        >>>
+        >>> real_price = df_test.loc[:, ['Price']]
+        >>>
+        >>> # Testing the univariate GW version on an ensemble of DNN models versus an ensemble
+        >>> # of LEAR models
+        >>> univ_p = GW(p_real=real_price.values.reshape(-1, 24),
+        ...             p_pred_1=forecasts.loc[:, 'LEAR Ensemble'].values.reshape(-1, 24),
+        ...             p_pred_2=forecasts.loc[:, 'DNN Ensemble'].values.reshape(-1, 24),
+        ...             norm=1,
+        ...             version='univariate')
+        >>> print(*[(i, p.round(decimals=8)) for i, p in enumerate(univ_p)], sep='\\n')
+        (0, 1.0)
+        (1, 1.0)
+        (2, 1.0)
+        (3, 1.0)
+        (4, 1.0)
+        (5, 1.0)
+        (6, 0.8658969)
+        (7, 0.00293152)
+        (8, 0.00291989)
+        (9, 0.00038448)
+        (10, 0.03982447)
+        (11, 0.03989027)
+        (12, 0.08743785)
+        (13, 0.07370347)
+        (14, 0.12498961)
+        (15, 0.06264695)
+        (16, 0.00512338)
+        (17, 0.02556893)
+        (18, 0.01988231)
+        (19, 0.00076182)
+        (20, 0.0341112)
+        (21, 0.0738448)
+        (22, 1.0)
+        (23, 0.07383338)
+        >>>
+        >>> # Testing the multivariate GW version
+        >>> multi_p = GW(p_real=real_price.values.reshape(-1, 24),
+        ...              p_pred_1=forecasts.loc[:, 'LEAR Ensemble'].values.reshape(-1, 24),
+        ...              p_pred_2=forecasts.loc[:, 'DNN Ensemble'].values.reshape(-1, 24),
+        ...              norm=1,
+        ...              version='multivariate')
+        >>> print(multi_p.round(decimals=8))
+        0.08663576
     """
+
     # Checking that all time series have the same shape
     if p_real.shape != p_pred_1.shape or p_real.shape != p_pred_2.shape:
         raise ValueError('The three time series must have the same shape')
 
     # Ensuring that time series have shape (n_days, n_prices_day)
-    if len(p_real.shape) == 1 or (len(p_real.shape) == 2 and p_real.shape[1] == 1):
-        raise ValueError('The time series must have shape (n_days, n_prices_day')
+    if p_real.ndim > 2:
+        raise ValueError('The time series are {0} dimensional although they must have maximum 2 dimensions'.
+                         format(p_real.ndim))
 
     # Computing the errors of each forecast
     loss1 = p_real - p_pred_1
     loss2 = p_real - p_pred_2
-    tau = 1 # Test is only implemented for a single-step forecasts
+
+    # This test is only implemented for a single-step forecasts
+    tau = 1
+
+    # Computing the loss differential series for the test
     if norm == 1:
         d = np.abs(loss1) - np.abs(loss2)
-    else:
+    if norm == 2:
         d = loss1**2 - loss2**2
-    TT = np.max(d.shape)
 
-    # Conditional Predictive Ability test
+    TT = np.max(a=d.shape)
+
+    # Computing the Conditional Predictive Ability test statistic
     if version == 'univariate':
-        GWstat = np.inf * np.ones((np.min(d.shape), ))
+        GWstat = np.inf * np.ones(shape=(np.min(a=d.shape), ))
         for h in range(24):
-            instruments = np.stack([np.ones_like(d[:-tau, h]), d[:-tau, h]])
+            instruments = np.stack(arrays=[np.ones_like(a=d[:-tau, h]), d[:-tau, h]])
             dh = d[tau:, h]
             T = TT - tau
             
             instruments = np.array(instruments, ndmin=2)
 
-            reg = np.ones_like(instruments) * -999
+            reg = np.ones_like(a=instruments) * -999
             for jj in range(instruments.shape[0]):
                 reg[jj, :] = instruments[jj, :] * dh
         
             if tau == 1:
-                betas = np.linalg.lstsq(reg.T, np.ones(T), rcond=None)[0]
-                err = np.ones((T, 1)) - np.dot(reg.T, betas)
-                r2 = 1 - np.mean(err**2)
+                betas = np.linalg.lstsq(a=reg.T, b=np.ones(shape=T), rcond=None)[0]
+                err = np.ones(shape=(T, 1)) - np.dot(a=reg.T, b=betas)
+                r2 = 1 - np.mean(a=err**2)
                 GWstat[h] = T * r2
             else:
                 raise NotImplementedError('Only one step forecasts are implemented')
 
     elif version == 'multivariate':
         d = d.mean(axis=1)
-        instruments = np.stack([np.ones_like(d[:-tau]), d[:-tau]])
+        instruments = np.stack(arrays=[np.ones_like(d[:-tau]), d[:-tau]])
         d = d[tau:]
         T = TT - tau
         
         instruments = np.array(instruments, ndmin=2)
 
-        reg = np.ones_like(instruments) * -999
+        reg = np.ones_like(a=instruments) * -999
         for jj in range(instruments.shape[0]):
             reg[jj, :] = instruments[jj, :] * d
     
         if tau == 1:
-            betas = np.linalg.lstsq(reg.T, np.ones(T), rcond=None)[0]
-            err = np.ones((T, 1)) - np.dot(reg.T, betas)
-            r2 = 1 - np.mean(err**2)
+            betas = np.linalg.lstsq(a=reg.T, b=np.ones(T), rcond=None)[0]
+            err = np.ones(shape=(T, 1)) - np.dot(a=reg.T, b=betas)
+            r2 = 1 - np.mean(a=err**2)
             GWstat = T * r2
         else:
             raise NotImplementedError('Only one step forecasts are implemented')
     
-    GWstat *= np.sign(np.mean(d, axis=0))
-    
+    GWstat *= np.sign(np.mean(a=d, axis=0))
     q = reg.shape[0]
-    pval = 1 - scipy.stats.chi2.cdf(GWstat, q)
-    return pval
+    p_value = 1 - stats.chi2.cdf(GWstat, q)
 
-def plot_multivariate_GW_test(real_price, forecasts, norm=1, title='GW test', savefig=False, path=''):
-    """Plotting the results of comparing forecasts using the multivariate GW test. 
+    return p_value
+
+
+def plot_multivariate_GW_test(real_price, forecasts, norm=1, title='GW test', savefig=False, path='.') -> None:
+    """Plotting the results of comparing forecasts using the multivariate GW test.
     
     The resulting plot is a heat map in a chessboard shape. It represents the p-value
     of the null hypothesis of the forecast in the y-axis being significantly more
@@ -167,21 +216,21 @@ def plot_multivariate_GW_test(real_price, forecasts, norm=1, title='GW test', sa
     
     Parameters
     ----------
-    real_price : pandas.DataFrame
-        Dataframe that contains the real prices
-    forecasts : TYPE
-        Dataframe that contains the forecasts of different models. The column names are the 
-        forecast/model names. The number of datapoints should equal the number of datapoints
-        in ``real_price``.
-    norm : int, optional
-        Norm used to compute the loss differential series. At the moment, this value must either
-        be 1 (for the norm-1) or 2 (for the norm-2).
-    title : str, optional
-        Title of the generated plot
-    savefig : bool, optional
-        Boolean that selects whether the figure should be saved in the current folder
-    path : str, optional
-        Path to save the figure. Only necessary when `savefig=True`
+        real_price : pd.DataFrame
+            Dataframe that contains the real prices
+        forecasts : pd.DataFrame
+            Dataframe that contains the forecasts of different models. The column names are the
+            forecast/model names. The number of datapoints should equal the number of datapoints
+            in ``real_price``.
+        norm : int
+            Norm used to compute the loss differential series. At the moment, this value must either
+            be 1 (for the norm-1) or 2 (for the norm-2).
+        title : str
+            Title of the generated plot
+        savefig : bool
+            Boolean that selects whether the figure should be saved into the current folder
+        path : str
+            Path to save the figure. Only necessary when `savefig=True`
     
     Example
     -------
@@ -193,8 +242,8 @@ def plot_multivariate_GW_test(real_price, forecasts, norm=1, title='GW test', sa
     >>> 
     >>> # Download available forecast of the NP market available in the library repository
     >>> # These forecasts accompany the original paper
-    >>> forecasts = pd.read_csv('https://raw.githubusercontent.com/jeslago/epftoolbox/master/' + 
-    ...                       'forecasts/Forecasts_NP_DNN_LEAR_ensembles.csv', index_col=0)
+    >>> forecasts = pd.read_csv('https://raw.githubusercontent.com/jeslago/epftoolbox/master/'
+    ...                         'forecasts/Forecasts_NP_DNN_LEAR_ensembles.csv', index_col=0)
     >>> 
     >>> # Deleting the real price field as it the actual real price and not a forecast
     >>> del forecasts['Real price']
@@ -203,51 +252,105 @@ def plot_multivariate_GW_test(real_price, forecasts, norm=1, title='GW test', sa
     >>> forecasts.index = pd.to_datetime(forecasts.index)
     >>> 
     >>> # Extracting the real prices from the market
-    >>> _, df_test = read_and_split_data(path='.', dataset='NP', begin_test_date=forecasts.index[0], 
-    ...                        end_test_date=forecasts.index[-1])
-    Test datasets: 2016-12-27 00:00:00 - 2018-12-24 23:00:00
+    >>> _, df_test = read_and_split_data(path='../../examples/datasets', dataset='NP', response='Price',
+    ...                                  begin_test_date=forecasts.index[0],
+    ...                                  end_test_date=forecasts.index[-1])
+    Training dataset period: 2013-01-01 00:00:00 - 2016-12-26 23:00:00
+    Testing dataset period: 2016-12-27 00:00:00 - 2018-12-24 23:00:00
     >>> 
     >>> real_price = df_test.loc[:, ['Price']]
     >>> 
     >>> # Generating a plot to compare the models using the multivariate GW test
     >>> plot_multivariate_GW_test(real_price=real_price, forecasts=forecasts)
-    
     """
-
     # Computing the multivariate GW test for each forecast pair
     p_values = pd.DataFrame(index=forecasts.columns, columns=forecasts.columns) 
 
     for model1 in forecasts.columns:
         for model2 in forecasts.columns:
-            # For the diagonal elemnts representing comparing the same model we directly set a 
-            # p-value of 1
+            # For the diagonal elements (the same models) we directly set the p-value of 1.
             if model1 == model2:
                 p_values.loc[model1, model2] = 1
             else:
                 p_values.loc[model1, model2] = GW(p_real=real_price.values.reshape(-1, 24), 
                                                   p_pred_1=forecasts.loc[:, model1].values.reshape(-1, 24), 
                                                   p_pred_2=forecasts.loc[:, model2].values.reshape(-1, 24), 
-                                                  norm=norm, version='multivariate')
+                                                  norm=norm,
+                                                  version='multivariate')
 
     # Defining color map
-    red = np.concatenate([np.linspace(0, 1, 50), np.linspace(1, 0.5, 50)[1:], [0]])
-    green = np.concatenate([np.linspace(0.5, 1, 50), np.zeros(50)])
-    blue = np.zeros(100)
-    rgb_color_map = np.concatenate([red.reshape(-1, 1), green.reshape(-1, 1), 
+    red = np.concatenate([np.linspace(start=0, stop=1, num=50),
+                          np.linspace(start=1, stop=0.5, num=50)[1:],
+                          [0]])
+    green = np.concatenate([np.linspace(start=0.5, stop=1, num=50),
+                            np.zeros(shape=50)])
+    blue = np.zeros(shape=100)
+    rgb_color_map = np.concatenate([red.reshape(-1, 1),
+                                    green.reshape(-1, 1),
                                     blue.reshape(-1, 1)], axis=1)
     rgb_color_map = mpl.colors.ListedColormap(rgb_color_map)
 
     # Generating figure
-    plt.imshow(p_values.astype(float).values, cmap=rgb_color_map, vmin=0, vmax=0.1)
+    plt.imshow(X=p_values.astype(dtype=float).values, cmap=rgb_color_map, vmin=0, vmax=0.1)
     plt.xticks(range(len(forecasts.columns)), forecasts.columns, rotation=90.)
     plt.yticks(range(len(forecasts.columns)), forecasts.columns)
     plt.plot(range(p_values.shape[0]), range(p_values.shape[0]), 'wx')
     plt.colorbar()
-    plt.title(title)
+    plt.title(label=title)
     plt.tight_layout()
 
     if savefig:
-        plt.savefig(title + '.png', dpi=300)
-        plt.savefig(title + '.eps')
+        os.makedirs(name=path, exist_ok=True)
+        plt_path = os.path.join(path, title)
+        plt.savefig(plt_path + '.png', dpi=300)
+        plt.savefig(plt_path + '.eps')
 
     plt.show()
+
+
+if __name__ == '__main__':
+    from epftoolbox.data import read_and_split_data
+    import pandas as pd
+
+    # Generating forecasts of multiple models
+
+    # Download available forecast of the NP market available in the library repository
+    # These forecasts accompany the original paper
+    forecasts = pd.read_csv('https://raw.githubusercontent.com/jeslago/epftoolbox/master/' +
+                            'forecasts/Forecasts_NP_DNN_LEAR_ensembles.csv', index_col=0)
+
+    # Deleting the real price field as it the actual real price and not a forecast
+    del forecasts['Real price']
+
+    # Transforming indices to datetime format
+    forecasts.index = pd.to_datetime(forecasts.index)
+
+    # Extracting the real prices from the market
+    _, df_test = read_and_split_data(path='../../examples/datasets',
+                                     dataset='NP',
+                                     response='Price',
+                                     begin_test_date=forecasts.index[0],
+                                     end_test_date=forecasts.index[-1])
+
+    real_price = df_test.loc[:, ['Price']]
+
+    # Testing the univariate GW version on an ensemble of DNN models versus an ensemble of LEAR models
+    univ_p = GW(p_real=real_price.values.reshape(-1, 24),
+                p_pred_1=forecasts.loc[:, 'LEAR Ensemble'].values.reshape(-1, 24),
+                p_pred_2=forecasts.loc[:, 'DNN Ensemble'].values.reshape(-1, 24),
+                norm=1,
+                version='univariate')
+    print(*[(i, p.round(decimals=8)) for i, p in enumerate(univ_p)], sep='\n')
+
+    # Testing the multivariate GW version
+    multi_p = GW(p_real=real_price.values.reshape(-1, 24),
+                 p_pred_1=forecasts.loc[:, 'LEAR Ensemble'].values.reshape(-1, 24),
+                 p_pred_2=forecasts.loc[:, 'DNN Ensemble'].values.reshape(-1, 24),
+                 norm=1,
+                 version='multivariate')
+    print(multi_p.round(decimals=8))
+
+    # Generating a plot to compare the models using the multivariate DM test
+    plot_multivariate_GW_test(real_price=real_price, forecasts=forecasts,
+                              title='GW test\nThe greener the area the more accurate the forecast'
+                                    '\nin the x-axis than the forecast in the y-axis.')
