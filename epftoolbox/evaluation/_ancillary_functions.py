@@ -7,24 +7,21 @@ import numpy as np
 import pandas as pd
 
 
-def _process_inputs_for_metrics(p_real: any, p_pred: any) -> tuple:
+def _process_inputs_for_metrics(p_real, p_pred):
     """Function that checks that the two standard inputs of the metric functions satisfy some requirements
-    
     
     Parameters
     ----------
-    p_real : numpy.ndarray, pandas.DataFrame, pandas.Series
-        Array/dataframe containing the real prices
-    p_pred : numpy.ndarray, pandas.DataFrame, pandas.Series
-        Array/dataframe containing the predicted prices
+        p_real : numpy.ndarray | pandas.DataFrame | pandas.Series
+            Array/dataframe containing the real prices
+        p_pred : numpy.ndarray | pandas.DataFrame | pandas.Series
+            Array/dataframe containing the predicted prices
     
     Returns
     -------
-    np.ndarray, np.ndarray
-        The p_real and p_pred as numpy.ndarray objects after checking that they satisfy requirements 
-    
+        numpy.ndarray
+            The p_real and p_pred as numpy.ndarray objects after checking that they satisfy requirements
     """
-
     # Checking whether both datasets are of the same allowed object type
     if (isinstance(p_real, pd.DataFrame) and not isinstance(p_pred, pd.DataFrame)) or\
             (isinstance(p_real, pd.Series) and not isinstance(p_pred, pd.Series)) or\
@@ -65,32 +62,33 @@ def naive_forecast(p_real, m=None, n_prices_day=24):
         
     Parameters
     ----------
-    p_real : pandas.DataFrame
-        Dataframe containing the real prices. It must be of shape :math:`(n_\\mathrm{prices}, 1)`,
-    m : int, optional
-        Index that specifies the seasonality in the naive forecast. It can
-        be ``'D'`` for daily seasonality, ``'W'`` for weekly seasonality, or ``None``
-        for the standard naive forecast in electricity price forecasting, 
-        i.e. daily seasonality for Tuesday to Friday and weekly seasonality 
-        for Saturday to Monday.
-    n_prices_day : int, optional
-        Number of prices in a day. Usually this value is 24 for most day-ahead markets
+        p_real : pandas.DataFrame
+            Dataframe containing the real prices.
+            It must be of shape :math:`(n_\\mathrm{prices}, 1)`,
+        m : str | None
+            Index that specifies the seasonality in the naive forecast.
+            It can be ``'D'`` for daily seasonality, ``'W'`` for weekly seasonality, or ``None``
+            for the standard naive forecast in electricity price forecasting,
+            i.e., daily seasonality for Tuesday to Friday and weekly seasonality
+            for Saturday to Monday.
+        n_prices_day : int
+            Number of prices in a day.
+            Usually this value is 24 for most day-ahead markets
     
     Returns
     -------
-    pandas.DataFrame
-        Dataframe containing the predictions of the naive forecast.
+        pandas.DataFrame
+            Dataframe containing the predictions of the naive forecast.
     """
-
     # Init the naive forecast
     if m is None or m == 'W':
         # remove the first 7 days from among the indices
-        # index = p_real.index[n_prices_day * 7:]
-        empty_frame = p_real[n_prices_day * 7:]
+        # index = p_real.index[n_prices_day * 7: ]
+        empty_frame = p_real[n_prices_day * 7: ]
     else:
         # remove the first 1 day from among the indices
-        # index = p_real.index[n_prices_day:]
-        empty_frame = p_real[n_prices_day * 7:]
+        # index = p_real.index[n_prices_day: ]
+        empty_frame = p_real[n_prices_day * 7: ]
 
     # create an empty result DataFrame with the new indices
     # y_pred = pd.DataFrame(index=index, columns=p_real.columns)
@@ -142,26 +140,26 @@ def _transform_input_prices_for_naive_forecast(p_real, m, freq):
     
     Parameters
     ----------
-    p_real : numpy.ndarray, pandas.DataFrame, pandas.Series
-        Array/dataframe containing the real prices
-    m : int, optional
-        Index that specifies the seasonality in the naive forecast. It can
-        be ``'D'`` for daily seasonality, ``'W'`` for weekly seasonality, or None
-        for the standard naive forecast in electricity price forecasting, 
-        i.e. daily seasonality for Tuesday to Friday and weekly seasonality 
-        for Saturday to Monday.
-    freq : str
-        Frequency of the data if ``p_real`` are numpy.ndarray objects.
-        It must take one of the following four values ``'1h'`` for 1 hour, ``'30min'`` for 30 minutes,
-        ``'15min'`` for 15 minutes, or ``'5min'`` for 5 minutes,  (these are the four standard values in
-        day-ahead electricity markets). If the shape of ``p_real`` is (n_days, n_prices_day),
-        freq should be the frequency of the columns not the daily frequency of the rows.    
+        p_real : numpy.ndarray | pandas.DataFrame | pandas.Series
+            Array/dataframe containing the real prices
+        m : str | None
+            Index that specifies the seasonality in the naive forecast.
+            It can be ``'D'`` for daily seasonality, ``'W'`` for weekly seasonality, or None
+            for the standard naive forecast in electricity price forecasting,
+            i.e., daily seasonality for Tuesday to Friday and weekly seasonality
+            for Saturday to Monday.
+        freq : str
+            Frequency of the data if ``p_real`` are numpy.ndarray objects.
+            It must take one of the following four values ``'1h'`` for 1 hour, ``'30min'`` for 30 minutes,
+            ``'15min'`` for 15 minutes, or ``'5min'`` for 5 minutes, (these are the four standard values in
+            day-ahead electricity markets).
+            If the shape of ``p_real`` is (n_days, n_prices_day), freq should be the frequency of the columns,
+            not the daily frequency of the rows.
     Returns
     -------
-    pandas.DataFrame
-        ``p_real`` as a pandas.DataFrame that can be used for the naive forecast 
+        pandas.DataFrame
+            ``p_real`` as a pandas.DataFrame that can be used for the naive forecast
     """
-
     # Ensure that m value is correct
     if m not in ['D', 'W', None]: 
         raise ValueError('m argument has to be D, W, or None. Current values is {}'.format(m))
@@ -214,7 +212,7 @@ def _transform_input_prices_for_naive_forecast(p_real, m, freq):
         if p_real.shape[1] > 1:
             # Inferring frequency within a day
             frequency_seconds = 24 * 60 * 60 / p_real.shape[1]
-            # Inferring last date in the dataset based on the frequency of points within a day
+            # Inferring the last date in the dataset based on the frequency of points within a day
             last_date = p_real.index[-1] + (p_real.shape[1] - 1) * pd.Timedelta(seconds=frequency_seconds)
             # Inferring indices
             indices = pd.date_range(start=p_real.index[0], end=last_date, periods=p_real.size)
@@ -227,4 +225,3 @@ def _transform_input_prices_for_naive_forecast(p_real, m, freq):
                         ' but it is of type {0}'.format(type(p_real)))
 
     return p_real
-
