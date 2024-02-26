@@ -14,6 +14,7 @@ from epftoolbox.data import read_and_split_data, scaling
 from epftoolbox.evaluation import MAE, sMAPE
 from sklearn.utils._testing import ignore_warnings
 from sklearn.exceptions import ConvergenceWarning
+from datetime import datetime
 
 
 class LEAR(object):
@@ -354,14 +355,13 @@ def evaluate_lear_in_test_dataset(path_datasets_folder=os.path.join('..', '..', 
                                   end_test_date=None,
                                   price_lags=(1, 2, 3, 7),
                                   exog_lags=(0, 1, 2),
-                                  dow_dummies=True):
+                                  dow_dummies=True,
+                                  save_frequency=5):
     """ Function for easy evaluation of the `LEAR` model in a test dataset using daily recalibration.
 
     The test dataset is defined by a market name and the test dates.
     The function generates the test and training datasets,
     and evaluates a LEAR model considering daily recalibration.
-
-    An example on how to use this function is provided: ref: `here<learex1>`.
 
     Parameters
     ----------
@@ -418,6 +418,10 @@ def evaluate_lear_in_test_dataset(path_datasets_folder=os.path.join('..', '..', 
             Whether the day of week dummy variables are used for training and forecasting or not.
             The default is True
 
+        save_frequency : int
+            The daily frequency of saving the results into the ``path_recalibration_folder``.
+            The default value is 5.
+
     Returns
     -------
         pandas.DataFrame
@@ -437,8 +441,9 @@ def evaluate_lear_in_test_dataset(path_datasets_folder=os.path.join('..', '..', 
                                             end_test_date=end_test_date)
 
     # Defining unique file name to save the forecast
-    forecast_file_name = 'LEAR_forecast' + '_dat' + str(dataset) + '_YT' + str(years_test) + \
-                         '_CW' + str(calibration_window) + '.csv'
+    forecast_file_name = ('LEAR_forecast_dat{0}_YT{1}_CW{2}_{3}.csv'.
+                          format(str(dataset), str(years_test), str(calibration_window),
+                                 datetime.now().strftime('%Y%m%d_%H%M%S')))
 
     # Compose the whole path of the forecast file name
     forecast_file_path = os.path.join(path_recalibration_folder, forecast_file_name)
@@ -463,7 +468,7 @@ def evaluate_lear_in_test_dataset(path_datasets_folder=os.path.join('..', '..', 
                  price_lags=price_lags, exog_lags=exog_lags, dow_dummies=dow_dummies)
 
     # For loop over the recalibration dates
-    for current_date in forecast.index:
+    for key, current_date in enumerate(forecast.index):
 
         # calculate the last timestamp of the current date
         current_date_end = current_date + pd.Timedelta(hours=23)
@@ -491,13 +496,15 @@ def evaluate_lear_in_test_dataset(path_datasets_folder=os.path.join('..', '..', 
         # Print information
         print('{0} - sMAPE: {1:.2f}%  |  MAE: {2:.3f}'.format(str(current_date)[:10], smape, mae))
 
-        # Saving forecast
-        forecast.to_csv(path_or_buf=forecast_file_path, sep=';', index=True, encoding='utf-8')
+        # Save the forecasts in save_frequency days chunks
+        if (key + 1) % save_frequency == 0 or (key + 1) == len(forecast.index):
+            forecast.to_csv(path_or_buf=forecast_file_path, sep=';', index=True, index_label='date', encoding='utf-8')
 
     return forecast
 
 
 if __name__ == '__main__':
+    # These codes below will only be executed if this script is run as the main program.
     predictions = evaluate_lear_in_test_dataset(
         dataset='DE',
         response='Price',
