@@ -1,6 +1,6 @@
 """
 Functions to compute and plot the univariate and multivariate versions of
-the one-sided version of the Diebold-Mariano (DM) test.
+the one-sided Diebold-Mariano (DM) test.
 """
 
 # Author: Jesus Lago
@@ -8,11 +8,10 @@ the one-sided version of the Diebold-Mariano (DM) test.
 # License: AGPL-3.0 License
 
 import numpy as np
-from scipy import stats
 import pandas as pd
+from scipy import stats
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-import os
 
 
 def DM(p_real, p_pred_1, p_pred_2, norm=1, version='univariate'):
@@ -22,7 +21,8 @@ def DM(p_real, p_pred_1, p_pred_2, norm=1, version='univariate'):
     between the two forecasts ``p_pred_1`` and ``p_pred_2``.
 
     In particular, the one-sided DM test evaluates the null hypothesis versus the alternative one.
-    H0 - the forecasting errors of ``p_pred_1`` are smaller or equal (better) than the predictive accuracy of ``p_pred_2``.
+    H0 - the forecasting errors of ``p_pred_1`` are smaller or equal (better) than
+    the predictive accuracy of ``p_pred_2``.
     H1 - the forecasting errors of ``p_pred_1`` are higher (worse) than the predictive accuracy of ``p_pred_2``.
 
     Rejecting the H0 (p-value < 5%) means that the forecast ``p_pred_2`` is significantly more accurate
@@ -60,131 +60,65 @@ def DM(p_real, p_pred_1, p_pred_2, norm=1, version='univariate'):
         float | np.ndarray
             The p-value(s) after performing the test. Either it is one p-value value in the case
             of the ``multivariate`` test, or a numpy.ndarray of 24 p-values for the ``univariate`` test
-
-    Example
-    -------
-        >>> from epftoolbox.evaluation import DM
-        >>> from epftoolbox.data import read_and_split_data
-        >>> import pandas as pd
-        >>>
-        >>> # Generating forecasts of multiple models
-        >>>
-        >>> # Download available forecast of the NP market available in the library repository
-        >>> # These forecasts accompany the original paper
-        >>> forecasts = pd.read_csv('https://raw.githubusercontent.com/jeslago/epftoolbox/master/'
-        ...                         'forecasts/Forecasts_NP_DNN_LEAR_ensembles.csv', index_col=0)
-        >>>
-        >>> # Deleting the real price field as it the actual real price and not a forecast
-        >>> del forecasts['Real price']
-        >>>
-        >>> # Transforming indices to datetime format
-        >>> forecasts.index = pd.to_datetime(forecasts.index)
-        >>>
-        >>> # Extracting the real prices from the market
-        >>> _, df_test = read_and_split_data(path='../../examples/datasets', dataset='NP', response='Price',
-        ...                                  begin_test_date=forecasts.index[0],
-        ...                                  end_test_date=forecasts.index[-1])
-        Training dataset period: 2013-01-01 00:00:00 - 2016-12-26 23:00:00
-        Testing dataset period: 2016-12-27 00:00:00 - 2018-12-24 23:00:00
-        >>>
-        >>> real_price = df_test.loc[:, ['Price']]
-        >>>
-        >>> # Testing the univariate DM version on an ensemble of DNN models versus an ensemble
-        >>> # of LEAR models
-        >>> univ_p = DM(p_real=real_price.values.reshape(-1, 24),
-        ...             p_pred_1=forecasts.loc[:, 'LEAR Ensemble'].values.reshape(-1, 24),
-        ...             p_pred_2=forecasts.loc[:, 'DNN Ensemble'].values.reshape(-1, 24),
-        ...             norm=1,
-        ...             version='univariate')
-        >>> print(*[(i, p.round(decimals=8)) for i, p in enumerate(univ_p)], sep='\\n')
-        (0, 1.0)
-        (1, 0.99988816)
-        (2, 0.91413885)
-        (3, 0.92259886)
-        (4, 0.93470312)
-        (5, 0.99454674)
-        (6, 0.3636968)
-        (7, 0.00029573)
-        (8, 0.00031402)
-        (9, 0.00021321)
-        (10, 0.00753069)
-        (11, 0.0077462)
-        (12, 0.01318551)
-        (13, 0.01955294)
-        (14, 0.02259846)
-        (15, 0.0089445)
-        (16, 0.0005398)
-        (17, 0.02093738)
-        (18, 0.00603305)
-        (19, 0.00027285)
-        (20, 0.13607714)
-        (21, 0.33256647)
-        (22, 0.52448957)
-        (23, 0.01382751)
-        >>>
-        >>> # Testing the multivariate DM version
-        >>> multi_p = DM(p_real=real_price.values.reshape(-1, 24),
-        ...              p_pred_1=forecasts.loc[:, 'LEAR Ensemble'].values.reshape(-1, 24),
-        ...              p_pred_2=forecasts.loc[:, 'DNN Ensemble'].values.reshape(-1, 24),
-        ...              norm=1,
-        ...              version='multivariate')
-        >>> print(multi_p.round(decimals=8))
-        0.01409985
     """
 
-    # Checking that all time series have the same shape
+    # Check that all time series have the same shape
     if p_real.shape != p_pred_1.shape or p_real.shape != p_pred_2.shape:
         raise ValueError('The three time series must have the same shape')
 
-    # Ensuring that time series have shape (n_days, n_prices_day)
+    # Ensure that time series have shape (n_days, n_prices_day)
     if p_real.ndim > 2:
         raise ValueError('The time series are {0} dimensional although they must have maximum 2 dimensions'.
                          format(p_real.ndim))
 
-    # Computing the errors of each forecast
+    # Compute the errors of each forecast
     loss1 = p_real - p_pred_1
     loss2 = p_real - p_pred_2
 
-    # Computing the test statistic
+    # Compute the test statistic
     if version == 'univariate':
-
-        # Computing the loss differential series for the test
+        # Compute the loss differential series for the test
         if norm == 1:
             d = np.abs(loss1) - np.abs(loss2)
-        if norm == 2:
+        elif norm == 2:
             d = loss1**2 - loss2**2
+        else:
+            raise ValueError('The norm must be either 1 or 2')
+        # Compute the loss differential size
+        n = d.shape[0]
 
-        # Computing the loss differential size
-        N = d.shape[0]
-
-        # Computing the test statistic
+        # Compute the test statistic
         mean_d = np.mean(d, axis=0)
         var_d = np.var(d, ddof=0, axis=0)
-        DM_stat = mean_d / np.sqrt(var_d / N)
+        dm_stat = mean_d / np.sqrt(var_d / n)
 
     elif version == 'multivariate':
-
-        # Computing the loss differential series for the multivariate test
+        # Compute the loss differential series for the multivariate test
         if norm == 1:
             d = np.mean(a=np.abs(loss1), axis=1) - np.mean(a=np.abs(loss2), axis=1)
-        if norm == 2:
+        elif norm == 2:
             d = np.mean(a=loss1**2, axis=1) - np.mean(a=loss2**2, axis=1)
+        else:
+            raise ValueError('The norm must be either 1 or 2')
 
-        # Computing the loss differential size
-        N = d.size
+        # Compute the loss differential size
+        n = d.size
 
-        # Computing the test statistic
+        # Compute the test statistic
         mean_d = np.mean(a=d)
         var_d = np.var(d, ddof=0)
-        DM_stat = mean_d / np.sqrt(var_d / N)
+        dm_stat = mean_d / np.sqrt(var_d / n)
+    
+    else:
+        raise ValueError('The version must be either "univariate" or "multivariate"')
         
-    p_value = 1 - stats.norm.cdf(x=DM_stat)
+    p_value = 1 - stats.norm.cdf(x=dm_stat)
 
     return p_value
 
 
 def plot_multivariate_DM_test(real_price, forecasts, norm=1, title='DM test', savefig=False, path='.') -> None:
-    """ Plotting the results of comparing forecasts using the multivariate DM test.
+    """ Plot the comparison of forecasts using the multivariate DM test.
     
     The resulting plot is a heat map in a chessboard shape. It represents the p-value
     of the null hypothesis of the forecast in the y-axis being significantly more
@@ -209,39 +143,8 @@ def plot_multivariate_DM_test(real_price, forecasts, norm=1, title='DM test', sa
             Boolean that selects whether the figure should be saved into the current folder
         path : str
             Path to save the figure. Only necessary when `savefig=True`
-    
-    Example
-    -------
-    >>> from epftoolbox.evaluation import DM, plot_multivariate_DM_test
-    >>> from epftoolbox.data import read_and_split_data
-    >>> import pandas as pd
-    >>> 
-    >>> # Generating forecasts of multiple models
-    >>> 
-    >>> # Download available forecast of the NP market available in the library repository
-    >>> # These forecasts accompany the original paper
-    >>> forecasts = pd.read_csv('https://raw.githubusercontent.com/jeslago/epftoolbox/master/'
-    ...                         'forecasts/Forecasts_NP_DNN_LEAR_ensembles.csv', index_col=0)
-    >>> 
-    >>> # Deleting the real price field as it the actual real price and not a forecast
-    >>> del forecasts['Real price']
-    >>> 
-    >>> # Transforming indices to datetime format
-    >>> forecasts.index = pd.to_datetime(forecasts.index)
-    >>> 
-    >>> # Extracting the real prices from the market
-    >>> _, df_test = read_and_split_data(path='../../examples/datasets', dataset='NP', response='Price',
-    ...                                  begin_test_date=forecasts.index[0],
-    ...                                  end_test_date=forecasts.index[-1])
-    Training dataset period: 2013-01-01 00:00:00 - 2016-12-26 23:00:00
-    Testing dataset period: 2016-12-27 00:00:00 - 2018-12-24 23:00:00
-    >>> 
-    >>> real_price = df_test.loc[:, ['Price']]
-    >>> 
-    >>> # Generating a plot to compare the models using the multivariate DM test
-    >>> plot_multivariate_DM_test(real_price=real_price, forecasts=forecasts)
     """
-    # Computing the multivariate DM test for each forecast pair
+    # Compute the multivariate DM test for each forecast pair
     p_values = pd.DataFrame(index=forecasts.columns, columns=forecasts.columns) 
 
     for model1 in forecasts.columns:
@@ -256,7 +159,7 @@ def plot_multivariate_DM_test(real_price, forecasts, norm=1, title='DM test', sa
                                                   norm=norm,
                                                   version='multivariate')
 
-    # Defining color map
+    # Define color map
     red = np.concatenate([np.linspace(start=0, stop=1, num=50),
                           np.linspace(start=1, stop=0.5, num=50)[1:],
                           [0]])
@@ -268,7 +171,7 @@ def plot_multivariate_DM_test(real_price, forecasts, norm=1, title='DM test', sa
                                     blue.reshape(-1, 1)], axis=1)
     rgb_color_map = mpl.colors.ListedColormap(rgb_color_map)
 
-    # Generating figure
+    # Generate figure
     plt.imshow(X=p_values.astype(dtype=float).values, cmap=rgb_color_map, vmin=0, vmax=0.1)
     plt.xticks(range(len(forecasts.columns)), forecasts.columns, rotation=90.)
     plt.yticks(range(len(forecasts.columns)), forecasts.columns)
@@ -287,48 +190,83 @@ def plot_multivariate_DM_test(real_price, forecasts, norm=1, title='DM test', sa
 
 
 if __name__ == '__main__':
+    # These codes below will only be executed if this script is run as the main program.
     from epftoolbox.data import read_and_split_data
     import pandas as pd
+    import os
 
-    # Generating forecasts of multiple models
+    # Generate forecasts of multiple models
 
-    # Download available forecast of the NP market available in the library repository
+    # Download available day-ahead electricity price forecast of
+    # the Nord Pool market available in the library repository.
     # These forecasts accompany the original paper
-    forecasts = pd.read_csv('https://raw.githubusercontent.com/jeslago/epftoolbox/master/' +
+    forecasts = pd.read_csv('https://raw.githubusercontent.com/jeslago/epftoolbox/master/'
                             'forecasts/Forecasts_NP_DNN_LEAR_ensembles.csv', index_col=0)
 
-    # Deleting the real price field as it the actual real price and not a forecast
-    del forecasts['Real price']
+    # Delete the real price field as it is the actual observed price and not a forecast
+    forecasts = forecasts.drop(columns='Real price')
 
-    # Transforming indices to datetime format
+    # Transform indices to datetime format
     forecasts.index = pd.to_datetime(forecasts.index)
 
-    # Extracting the real prices from the market
-    _, df_test = read_and_split_data(path='../../examples/datasets',
+    # Read the real day-ahead electricity price data of the Nord Pool market
+    # The scope period should be the same as in forecasted data.
+    _, df_test = read_and_split_data(path=os.path.join('..', '..', 'examples', 'datasets'),
                                      dataset='NP',
                                      response='Price',
                                      begin_test_date=forecasts.index[0],
                                      end_test_date=forecasts.index[-1])
+    # Training dataset period: 2013-01-01 00:00:00 - 2016-12-26 23:00:00
+    # Testing dataset period: 2016-12-27 00:00:00 - 2018-12-24 23:00:00
 
+    # Extract the real day-ahead electricity price data
     real_price = df_test.loc[:, ['Price']]
 
-    # Testing the univariate DM version on an ensemble of DNN models versus an ensemble of LEAR models
+    # Calculate the univariate Diebold-Mariano test on an ensemble of DNN models versus an ensemble of LEAR models
     univ_p = DM(p_real=real_price.values.reshape(-1, 24),
                 p_pred_1=forecasts.loc[:, 'LEAR Ensemble'].values.reshape(-1, 24),
                 p_pred_2=forecasts.loc[:, 'DNN Ensemble'].values.reshape(-1, 24),
                 norm=1,
                 version='univariate')
-    print(*[(i, p.round(decimals=8)) for i, p in enumerate(univ_p)], sep='\n')
+    print('univariate DM test:', *[(i, p.round(decimals=8)) for i, p in enumerate(univ_p)], sep='\n\t')
+    # univariate DM test:
+    #     (0, 1.0)
+    #     (1, 0.99988816)
+    #     (2, 0.91413885)
+    #     (3, 0.92259886)
+    #     (4, 0.93470312)
+    #     (5, 0.99454674)
+    #     (6, 0.3636968)
+    #     (7, 0.00029573)
+    #     (8, 0.00031402)
+    #     (9, 0.00021321)
+    #     (10, 0.00753069)
+    #     (11, 0.0077462)
+    #     (12, 0.01318551)
+    #     (13, 0.01955294)
+    #     (14, 0.02259846)
+    #     (15, 0.0089445)
+    #     (16, 0.0005398)
+    #     (17, 0.02093738)
+    #     (18, 0.00603305)
+    #     (19, 0.00027285)
+    #     (20, 0.13607714)
+    #     (21, 0.33256647)
+    #     (22, 0.52448957)
+    #     (23, 0.01382751)
 
-    # Testing the multivariate DM version
+    # Calculate the multivariate Diebold-Mariano test on an ensemble of DNN models versus an ensemble of LEAR models
     multi_p = DM(p_real=real_price.values.reshape(-1, 24),
                  p_pred_1=forecasts.loc[:, 'LEAR Ensemble'].values.reshape(-1, 24),
                  p_pred_2=forecasts.loc[:, 'DNN Ensemble'].values.reshape(-1, 24),
                  norm=1,
                  version='multivariate')
-    print(multi_p.round(decimals=8))
+    print('multivariate DM test:', multi_p.round(decimals=8), sep='\n\t')
+    # multivariate DM test:
+    #     0.01409985
 
-    # Generating a plot to compare the models using the multivariate DM test
-    plot_multivariate_DM_test(real_price=real_price, forecasts=forecasts,
+    # Plot the comparison of models using the multivariate DM test
+    plot_multivariate_DM_test(real_price=real_price, forecasts=forecasts, norm=1,
                               title='DM test\nThe greener the area the more accurate the forecast'
-                                    '\nin the x-axis than the forecast in the y-axis.')
+                                    '\nin the x-axis than the forecast in the y-axis.',
+                              savefig=False)
