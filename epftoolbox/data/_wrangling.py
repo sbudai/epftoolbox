@@ -45,31 +45,20 @@ class MedianScaler(object):
 
         # set object as fitted
         self.fitted = True
-        
-    def fit_transform(self, data) -> numpy.ndarray:
-        """ Calculate medians and robust median absolute deviations for each feature (column) of the data.
-        And then calculate normalized values for each feature (column) of the data
-        using median and robust median absolute deviation values.
+
+    def transform(self, data):
+        """ Calculate normalized values for each feature (column) of the data
+        using median and robust median absolute deviation values which come from fitting.
 
         Parameters
         ----------
             data : numpy.ndarray
                 Input array of size *[n,m]* where *n* is the number of datapoints and *m* the number of features
-        """
-        # medians and robust median absolute deviations for each feature
-        self.fit(data)
 
-        # calculate normalized values
-        return self.transform(data)
-    
-    def transform(self, data) -> numpy.ndarray:
-        """ Calculate normalized values for each feature (column) of the data
-        using median and robust median absolute deviation values.
-
-        Parameters
-        ----------
-        data : numpy.ndarray
-            Input array of size *[n,m]* where *n* is the number of datapoints and *m* the number of features
+        Returns
+        -------
+            numpy.ndarray
+                A numpy array containing the normalized data.
         """
         if not self.fitted:
             raise TypeError('The scaler has not been yet fitted. Call fit or fit_transform!')
@@ -87,14 +76,40 @@ class MedianScaler(object):
 
         return transformed_data
 
-    def inverse_transform(self, data) -> numpy.ndarray:
-        """ Calculate denormalized values for each feature (column) of the data
+    def fit_transform(self, data):
+        """ Calculate medians and robust median absolute deviations for each feature (column) of the data.
+        And then calculate normalized values for each feature (column) of the data
+        using median and robust median absolute deviation values.
+
+        Parameters
+        ----------
+            data : numpy.ndarray
+                Input array of size *[n,m]* where *n* is the number of datapoints and *m* the number of features
+
+        Returns
+        -------
+            numpy.ndarray
+                A numpy array containing the normalized data.
+        """
+        # medians and robust median absolute deviations for each feature
+        self.fit(data)
+
+        # calculate normalized values
+        return self.transform(data)
+    
+    def inverse_transform(self, data):
+        """ Calculate the denormalized values for each feature (column) of the data
         using median and robust median absolute deviation values.
 
         Parameters
         ----------
         data : numpy.ndarray
             Input array of size *[n,m]* where *n* is the number of datapoints and *m* the number of features
+
+        Returns
+        -------
+            numpy.ndarray
+                A numpy array containing the inverse normalized data.
         """
         if not self.fitted:
             raise TypeError('The scaler has not been yet fitted. Call fit or fit_transform!')
@@ -119,11 +134,7 @@ class InvariantScaler(MedianScaler):
     def __init__(self):
         super().__init__()
 
-    def fit_transform(self, data):
-        super().fit(data)
-        return self.transform(data)
-    
-    def transform(self, data) -> numpy.ndarray:
+    def transform(self, data):
         """ Calculate the inverse hyperbolic sine (sinh^-1.) of the normalized values
         for each feature (column) of the data using median and robust median absolute deviation values.
 
@@ -131,9 +142,29 @@ class InvariantScaler(MedianScaler):
         ----------
             data : numpy.ndarray
                 Input array of size *[n,m]* where *n* is the number of datapoints and *m* the number of features
+
+        Returns
+        -------
+            numpy.ndarray
+                A numpy array containing the invariant normalized data.
         """
         transformed_data = np.arcsinh(super().transform(data))
         return transformed_data
+
+    def fit_transform(self, data):
+        """
+        Parameters
+        ----------
+            data : numpy.ndarray
+                Input array of size *[n,m]* where *n* is the number of datapoints and *m* the number of features
+
+        Returns
+        -------
+            numpy.ndarray
+                A numpy array containing the invariant normalized data.
+        """
+        super().fit(data)
+        return self.transform(data)
 
     def inverse_transform(self, data):
         """ Calculate denormalized values for each feature (column) of the data
@@ -142,14 +173,19 @@ class InvariantScaler(MedianScaler):
         Parameters
         ----------
             data : numpy.ndarray
-                Input array of size *[n,m]* where *n* is the number of datapoints and *m* the number of features
+                Input array of size *[n,m]* where *n* is the number of datapoints and *m* the number of features.
+
+        Returns
+        -------
+            numpy.ndarray
+                A numpy array containing the inverse invariant normalized data.
         """
         transformed_data = super().inverse_transform(np.sinh(data))
         return transformed_data
 
 
 class DataScaler(object):
-    """Class to perform data scaling operations, which follows the same syntax of the scalers defined in the
+    """ Class to perform data scaling operations, which follows the same syntax of the scalers defined in the
     `sklearn.preprocessing <https://scikit-learn.org/stable/modules/preprocessing.html>`_ module of the
     scikit-learn library.
 
@@ -157,7 +193,7 @@ class DataScaler(object):
 
     - ``'Norm'`` for normalizing the data to the interval [0, 1].
     - ``'Norm1'`` for normalizing the data to the interval [-1, 1].
-    - ``'Std'`` for standarizing the data to follow a normal distribution.
+    - ``'Std'`` for standardizing the data to follow a normal distribution.
     - ``'Median'`` for normalizing the data based on the median
       as defined in `here <https://doi.org/10.1109/TPWRS.2017.2734563>`_.
     - ``'Invariant'`` for scaling the data based on the asinh (sinh^-1) variance stabilizing transformations
@@ -174,61 +210,6 @@ class DataScaler(object):
                 - ``'Std'``
                 - ``'Median'``
                 - ``'Invariant'``
-
-    Example
-    --------
-        >>> from epftoolbox.data import read_and_split_data
-        >>> from epftoolbox.data import DataScaler
-        >>> df_train, df_test = read_and_split_data(path='.', dataset='PJM', response='Zonal COMED price',
-        ...                                         begin_test_date='01-01-2016', end_test_date='01-02-2016')
-        Test datasets: 2016-01-01 00:00:00 - 2016-02-01 23:00:00
-        >>> df_train.tail()
-                                 Price  Exogenous 1  Exogenous 2
-        Date
-        2015-12-31 19:00:00  29.513832     100700.0      13015.0
-        2015-12-31 20:00:00  28.440134      99832.0      12858.0
-        2015-12-31 21:00:00  26.701700      97033.0      12626.0
-        2015-12-31 22:00:00  23.262253      92022.0      12176.0
-        2015-12-31 23:00:00  22.262431      86295.0      11434.0
-        >>> df_test.head()
-                                 Price  Exogenous 1  Exogenous 2
-        Date
-        2016-01-01 00:00:00  20.341321      76840.0      10406.0
-        2016-01-01 01:00:00  19.462741      74819.0      10075.0
-        2016-01-01 02:00:00  17.172706      73182.0       9795.0
-        2016-01-01 03:00:00  16.963876      72300.0       9632.0
-        2016-01-01 04:00:00  17.403722      72535.0       9566.0
-        >>> x_train = df_train.values
-        >>> x_test = df_train.values
-        >>> scaler = DataScaler('Norm')
-        >>> x_train_scaled = scaler.fit_transform(x_train)
-        >>> x_test_scaled = scaler.transform(x_test)
-        >>> x_train_inverse = scaler.inverse_transform(x_train_scaled)
-        >>> x_test_inverse = scaler.inverse_transform(x_test_scaled)
-        >>> x_train[:3,:]
-        array([[2.5464211e+01, 8.5049000e+04, 1.1509000e+04],
-               [2.3554578e+01, 8.2128000e+04, 1.0942000e+04],
-               [2.2122277e+01, 8.0729000e+04, 1.0639000e+04]])
-        >>> x_train_scaled[:3,:]
-        array([[0.03833877, 0.2736787 , 0.28415155],
-               [0.03608228, 0.24425597, 0.24633138],
-               [0.03438982, 0.23016409, 0.2261206 ]])
-        >>> x_train_inverse[:3,:]
-        array([[2.5464211e+01, 8.5049000e+04, 1.1509000e+04],
-               [2.3554578e+01, 8.2128000e+04, 1.0942000e+04],
-               [2.2122277e+01, 8.0729000e+04, 1.0639000e+04]])
-        >>> x_test[:3,:]
-        array([[2.5464211e+01, 8.5049000e+04, 1.1509000e+04],
-               [2.3554578e+01, 8.2128000e+04, 1.0942000e+04],
-               [2.2122277e+01, 8.0729000e+04, 1.0639000e+04]])
-        >>> x_test_scaled[:3,:]
-        array([[0.03833877, 0.2736787 , 0.28415155],
-               [0.03608228, 0.24425597, 0.24633138],
-               [0.03438982, 0.23016409, 0.2261206 ]])
-        >>> x_test_inverse[:3,:]
-        array([[2.5464211e+01, 8.5049000e+04, 1.1509000e+04],
-               [2.3554578e+01, 8.2128000e+04, 1.0942000e+04],
-               [2.2122277e+01, 8.0729000e+04, 1.0639000e+04]])
     """
     def __init__(self, normalize):
         if normalize == 'Norm':
@@ -242,7 +223,7 @@ class DataScaler(object):
         elif normalize == 'Invariant':
             self.scaler = InvariantScaler()        
 
-    def fit(self, dataset):
+    def fit(self, dataset) -> None:
         """ Method that estimates the scaler based on the ``dataset``.
 
         Parameters
@@ -251,6 +232,23 @@ class DataScaler(object):
                 Dataset used to estimate the scaler
         """
         self.scaler.fit(dataset)
+
+    def transform(self, dataset):
+        """ Method that scales the data in ``dataset``.
+
+        To estimate the scaler, the :class:`fit_transform` method must be called
+        before calling the :class:`transform` method.
+        Parameters
+        ----------
+            dataset : numpy.ndarray
+                Dataset to be scaled
+
+        Returns
+        -------
+            numpy.ndarray
+                Scaled data
+        """
+        return self.scaler.transform(dataset)
 
     def fit_transform(self, dataset):
         """ Method that - according to scaler setting - calculates normalized values
@@ -268,23 +266,6 @@ class DataScaler(object):
         """
         return self.scaler.fit_transform(dataset)
 
-    def transform(self, dataset):
-        """Method that scales the data in ``dataset``.
-        
-        To estimate the scaler, the :class:`fit_transform` method must be called
-        before calling the :class:`transform` method.
-        Parameters
-        ----------
-            dataset : numpy.ndarray
-                Dataset to be scaled
-        
-        Returns
-        -------
-            numpy.ndarray
-                Scaled data
-        """
-        return self.scaler.transform(dataset)
-
     def inverse_transform(self, dataset):
         """Method that inverse-scale the data in ``dataset``
         
@@ -299,7 +280,7 @@ class DataScaler(object):
         Returns
         -------
             numpy.ndarray
-                Inverse-scaled data
+                A numpy array containing the inverse normalized data.
         """
         return self.scaler.inverse_transform(dataset)
 
@@ -321,7 +302,7 @@ def scaling(datasets, normalize):
 
     - ``'Norm'`` for normalizing the data to the interval [0, 1].
     - ``'Norm1'`` for normalizing the data to the interval [-1, 1].
-    - ``'Std'`` for standarizing the data to follow a normal distribution.
+    - ``'Std'`` for standardizing the data to follow a normal distribution.
     - ``'Median'`` for normalizing the data based on the median
       as defined in `here <https://doi.org/10.1109/TPWRS.2017.2734563>`_.
     - ``'Invariant'`` for scaling the data based on the asinh (sinh^-1) variance stabilizing transformation
@@ -345,68 +326,9 @@ def scaling(datasets, normalize):
     
     Returns
     -------
-        List, :class:`DataScaler`
+        (list, :class:`DataScaler`)
             List of scaled datasets and the :class:`DataScaler` object used for scaling.
             Each dataset in the list is a numpy.ndarray.
-    
-    Example
-    --------
-        >>> from epftoolbox.data import read_and_split_data
-        >>> from epftoolbox.data import scaling
-        >>> df_train, df_test = read_and_split_data(path='../examples/datasets', dataset='PJM',
-        ...                                         response='Zonal COMED price',
-        ...                                         begin_test_date='01-01-2016 00:00',
-        ...                                         end_test_date='01-02-2016 23:00')
-        Training dataset period: 2013-01-01 00:00:00 - 2015-12-31 23:00:00
-        Testing dataset period: 2016-01-01 00:00:00 - 2016-02-01 23:00:00
-        Test datasets: 2016-01-01 00:00:00 - 2016-02-01 23:00:00
-        >>> print('\\ndf_train.tail()', df_train.tail(), sep='\\n')
-        df_train.tail()
-                                 Price  Exogenous 1  Exogenous 2
-        Date
-        2015-12-31 19:00:00  29.513832     100700.0      13015.0
-        2015-12-31 20:00:00  28.440134      99832.0      12858.0
-        2015-12-31 21:00:00  26.701700      97033.0      12626.0
-        2015-12-31 22:00:00  23.262253      92022.0      12176.0
-        2015-12-31 23:00:00  22.262431      86295.0      11434.0
-        >>> print('\\ndf_test.head()', df_test.head(), sep='\\n')
-        df_test.head()
-                                 Price  Exogenous 1  Exogenous 2
-        Date
-        2016-01-01 00:00:00  20.341321      76840.0      10406.0
-        2016-01-01 01:00:00  19.462741      74819.0      10075.0
-        2016-01-01 02:00:00  17.172706      73182.0       9795.0
-        2016-01-01 03:00:00  16.963876      72300.0       9632.0
-        2016-01-01 04:00:00  17.403722      72535.0       9566.0
-        >>> x_train = df_train.values
-        >>> x_test = df_train.values
-        >>> [x_train_scaled_Norm, x_test_scaled_Norm], scaler = scaling(datasets=[x_train, x_test], normalize='Norm')
-        >>> print('\\nx_train[:4, :]:', x_train[:4, :], sep='\\n')
-        x_train[:4, :]:
-        [[2.5464211e+01 8.5049000e+04 1.1509000e+04]
-         [2.3554578e+01 8.2128000e+04 1.0942000e+04]
-         [2.2122277e+01 8.0729000e+04 1.0639000e+04]
-         [2.1592066e+01 8.0248000e+04 1.0476000e+04]]
-        >>> print('\\nx_train_scaled_Norm[:4, :]:', x_train_scaled_Norm[:4, :], sep='\\n')
-        x_train_scaled_Norm[:4, :]:
-        [[0.03833877 0.2736787  0.28415155]
-         [0.03608228 0.24425597 0.24633138]
-         [0.03438982 0.23016409 0.2261206 ]
-         [0.0337633  0.22531906 0.21524813]]
-        >>> print('\\nx_test[:4, :]:', x_test[:4, :], sep='\\n')
-        x_test[:4, :]:
-        [[2.5464211e+01 8.5049000e+04 1.1509000e+04]
-         [2.3554578e+01 8.2128000e+04 1.0942000e+04]
-         [2.2122277e+01 8.0729000e+04 1.0639000e+04]
-         [2.1592066e+01 8.0248000e+04 1.0476000e+04]]
-        >>> print('\\nx_test_scaled_Norm[:4, :]:', x_test_scaled_Norm[:4, :], sep='\\n')
-        x_test_scaled_Norm[:4, :]:
-        [[0.03833877 0.2736787  0.28415155]
-         [0.03608228 0.24425597 0.24633138]
-         [0.03438982 0.23016409 0.2261206 ]
-         [0.0337633  0.22531906 0.21524813]]
-        >>> print('\\ntype(scaler):', type(scaler))
-        type(scaler): <class 'epftoolbox.data._wrangling.DataScaler'>
     """
     # instantiate a scaler object according to the normalization technique
     scaler = DataScaler(normalize=normalize)
@@ -421,12 +343,36 @@ def scaling(datasets, normalize):
 
 
 if __name__ == '__main__':
+    # These codes below will only be executed if this script is run as the main program.
     from epftoolbox.data import read_and_split_data
     from epftoolbox.data import scaling
-    df_train, df_test = read_and_split_data(path='../examples/datasets', dataset='PJM', response='Zonal COMED price',
+    import os
+
+    df_train, df_test = read_and_split_data(path=os.path.join('..', '..', 'examples', 'datasets'), dataset='PJM',
+                                            response='Zonal COMED price',
                                             begin_test_date='01-01-2016 00:00', end_test_date='01-02-2016 23:00')
+    # Training dataset period: 2013-01-01 00:00:00 - 2015-12-31 23:00:00
+    # Testing dataset period: 2016-01-01 00:00:00 - 2016-02-01 23:00:00
+
     print('\ndf_train.tail()', df_train.tail(), sep='\n')
+    # df_train.tail()
+    # Price  Exogenous_1  Exogenous_2
+    # date
+    # 2015-12-31 19:00:00  29.513832     100700.0      13015.0
+    # 2015-12-31 20:00:00  28.440134      99832.0      12858.0
+    # 2015-12-31 21:00:00  26.701700      97033.0      12626.0
+    # 2015-12-31 22:00:00  23.262253      92022.0      12176.0
+    # 2015-12-31 23:00:00  22.262431      86295.0      11434.0
+
     print('\ndf_test.head()', df_test.head(), sep='\n')
+    # df_test.head()
+    # Price  Exogenous_1  Exogenous_2
+    # date
+    # 2016-01-01 00:00:00  20.341321      76840.0      10406.0
+    # 2016-01-01 01:00:00  19.462741      74819.0      10075.0
+    # 2016-01-01 02:00:00  17.172706      73182.0       9795.0
+    # 2016-01-01 03:00:00  16.963876      72300.0       9632.0
+    # 2016-01-01 04:00:00  17.403722      72535.0       9566.0
 
     x_train = df_train.values
     x_test = df_train.values
@@ -434,8 +380,36 @@ if __name__ == '__main__':
     [x_train_scaled_Norm, x_test_scaled_Norm], scaler = scaling(datasets=[x_train, x_test], normalize='Norm')
 
     print('\nx_train[:4, :]:', x_train[:4, :], sep='\n')
+    # x_train[:4, :]:
+    # [[2.5464211e+01 8.5049000e+04 1.1509000e+04]
+    #  [2.3554578e+01 8.2128000e+04 1.0942000e+04]
+    #  [2.2122277e+01 8.0729000e+04 1.0639000e+04]
+    #  [2.1592066e+01 8.0248000e+04 1.0476000e+04]]
+
     print('\nx_train_scaled_Norm[:4, :]:', x_train_scaled_Norm[:4, :], sep='\n')
+    # x_train_scaled_Norm[:4, :]:
+    # [[0.03833877 0.2736787  0.28415155]
+    #  [0.03608228 0.24425597 0.24633138]
+    #  [0.03438982 0.23016409 0.2261206 ]
+    #  [0.0337633  0.22531906 0.21524813]]
+
     print('\nx_test[:4, :]:', x_test[:4, :], sep='\n')
+    # x_test[:4, :]:
+    # [[2.5464211e+01 8.5049000e+04 1.1509000e+04]
+    #  [2.3554578e+01 8.2128000e+04 1.0942000e+04]
+    #  [2.2122277e+01 8.0729000e+04 1.0639000e+04]
+    #  [2.1592066e+01 8.0248000e+04 1.0476000e+04]]
+
     print('\nx_test_scaled_Norm[:4, :]:', x_test_scaled_Norm[:4, :], sep='\n')
+    # x_test_scaled_Norm[:4, :]:
+    # [[0.03833877 0.2736787  0.28415155]
+    #  [0.03608228 0.24425597 0.24633138]
+    #  [0.03438982 0.23016409 0.2261206 ]
+    #  [0.0337633  0.22531906 0.21524813]]
+
     print('\ntype(scaler):', type(scaler))
+    # type(scaler): <class 'epftoolbox.data._wrangling.DataScaler'>
+
     print('\nscaler.scaler:', scaler.scaler, sep='\n')
+    # scaler.scaler:
+    # MinMaxScaler()
