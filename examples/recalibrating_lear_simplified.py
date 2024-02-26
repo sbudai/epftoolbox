@@ -24,10 +24,10 @@ years_test = 2
 calibration_window = 364 * 3
 
 # Define the path of the input dataset folder
-path_datasets_folder = os.path.join('.', 'datasets')
+path_datasets_folder = os.path.join('..', 'examples', 'datasets')
 
 # Define the path to the folder where to save the forecasts
-path_recalibration_folder = os.path.join('.', 'experimental_files')
+path_recalibration_folder = os.path.join('..', 'examples', 'experimental_files')
     
 evaluate_lear_in_test_dataset(path_datasets_folder=path_datasets_folder,
                               path_recalibration_folder=path_recalibration_folder,
