@@ -23,7 +23,7 @@ def read_and_split_data(path=os.path.join('.', 'datasets'), dataset='PJM', respo
     It also renames the columns of the training and testing dataset to match the requirements of the
     current module's prediction models.
     Namely, assuming that there are N exogenous explanatory variable inputs,
-    the columns of the resulting dataframes will be naTest datasetsmed as
+    the columns of the resulting dataframes will be named as
     ['Price', 'Exogenous_1', 'Exogenous_2', ..., 'Exogenous_N'].
 
     If `dataset` is one of the online available standard market datasets of the study,
@@ -55,72 +55,24 @@ def read_and_split_data(path=os.path.join('.', 'datasets'), dataset='PJM', respo
                 counting back from the end of the input dataset.
                 Note that a year is considered to be 364 days.
                 It is only used if the arguments `begin_test_date` and `end_test_date` are not provided.
-            begin_test_date : datetime | str | None
+            begin_test_date : datetime.datetime | str | None
                 Optional parameter to select the test dataset.
                 Used in combination with the argument `end_test_date`.
                 If either of them is not provided, the test dataset will be split using the `years_test` argument.
                 The `begin_test_date` should either be a string with the following format "%d/%m/%Y 00:00",
                 or a datetime object.
-            end_test_date : datetime | str | None
+            end_test_date : datetime.datetime | str | None
                 Optional parameter to select the test dataset.
                 This value may be earlier than the last timestamp in the input dataset.
                 Used in combination with the argument `begin_test_date`.
                 If either of them is not provided, the test dataset will be split using the `years_test` argument.
                 The `end_test_date` should either be a string with the following format "%d/%m/%Y 23:00",
                 or a datetime object.
+
         Returns
         -------
             tuple[pandas.DataFrame, pandas.DataFrame]
                 Training dataset, testing dataset
-
-        Example
-        --------
-            >>> from epftoolbox.data import read_and_split_data
-            >>> df_train, df_test = read_and_split_data(
-            ...     path=os.path.join('.', 'datasets'),
-            ...     dataset='PJM',
-            ...     response='Zonal COMED price',
-            ...     begin_test_date='01/01/2016 00:00',
-            ...     end_test_date='01/02/2016 23:00',
-            ... )
-            Training dataset period: 2013-01-01 00:00:00 - 2015-12-31 23:00:00
-            Testing dataset period: 2016-01-01 00:00:00 - 2016-02-01 23:00:00
-            >>> print("df_train:", df_train, sep="\\n")
-            df_train:
-                                     Price  Exogenous_1  Exogenous_2
-            Date
-            2013-01-01 00:00:00  25.464211      85049.0      11509.0
-            2013-01-01 01:00:00  23.554578      82128.0      10942.0
-            2013-01-01 02:00:00  22.122277      80729.0      10639.0
-            2013-01-01 03:00:00  21.592066      80248.0      10476.0
-            2013-01-01 04:00:00  21.546501      80850.0      10445.0
-            ...                        ...          ...          ...
-            2015-12-31 19:00:00  29.513832     100700.0      13015.0
-            2015-12-31 20:00:00  28.440134      99832.0      12858.0
-            2015-12-31 21:00:00  26.701700      97033.0      12626.0
-            2015-12-31 22:00:00  23.262253      92022.0      12176.0
-            2015-12-31 23:00:00  22.262431      86295.0      11434.0
-
-            [26280 rows x 3 columns]
-
-            >>> print("df_test:", df_test, sep="\\n")
-            df_test:
-                                     Price  Exogenous_1  Exogenous_2
-            Date
-            2016-01-01 00:00:00  20.341321      76840.0      10406.0
-            2016-01-01 01:00:00  19.462741      74819.0      10075.0
-            2016-01-01 02:00:00  17.172706      73182.0       9795.0
-            2016-01-01 03:00:00  16.963876      72300.0       9632.0
-            2016-01-01 04:00:00  17.403722      72535.0       9566.0
-            ...                        ...          ...          ...
-            2016-02-01 19:00:00  28.056729      99400.0      12680.0
-            2016-02-01 20:00:00  26.916456      97553.0      12495.0
-            2016-02-01 21:00:00  24.041505      93983.0      12267.0
-            2016-02-01 22:00:00  22.044896      88535.0      11747.0
-            2016-02-01 23:00:00  20.593339      82900.0      10974.0
-
-            [768 rows x 3 columns]
-
     """
 
     # Checking if provided directory exists on local, and if not, create it
@@ -162,6 +114,10 @@ def read_and_split_data(path=os.path.join('.', 'datasets'), dataset='PJM', respo
                inplace=True)
     df_.rename(columns={all_columns[i]: 'Exogenous_{0}'.format(j + 1) for j, i in enumerate(exogen_indices)},
                inplace=True)
+    df_.columns.name = None
+
+    # set the index name
+    df_.index.name = 'date'
 
     # The training and test datasets can be defined by providing a number of years for testing
     # or by providing the start and end date of the test period
@@ -227,6 +183,7 @@ def read_and_split_data(path=os.path.join('.', 'datasets'), dataset='PJM', respo
 
 
 if __name__ == '__main__':
+    # These codes below will only be executed if this script is run as the main program.
     df_train, df_test = read_and_split_data(
         path=os.path.join('..', '..', 'examples', 'datasets'),
         dataset='DE',
@@ -235,5 +192,41 @@ if __name__ == '__main__':
         # begin_test_date="01/01/2016 00:00",
         # end_test_date="01/02/2016 23:00",
     )
+    # Training dataset period: 2012-01-09 00:00:00 - 2016-01-03 23:00:00
+    # Testing dataset period: 2016-01-04 00:00:00 - 2017-12-31 23:00:00
+
     print("df_train:", df_train, sep="\n")
+    # df_train:
+    #                      Price  Exogenous_1  Exogenous_2
+    # date
+    # 2012-01-09 00:00:00  34.97     16382.00   3569.52750
+    # 2012-01-09 01:00:00  33.43     15410.50   3315.27500
+    # 2012-01-09 02:00:00  32.74     15595.00   3107.30750
+    # 2012-01-09 03:00:00  32.46     16521.00   2944.62000
+    # 2012-01-09 04:00:00  32.50     17700.75   2897.15000
+    # ...                    ...          ...          ...
+    # 2016-01-03 19:00:00  27.08     19242.25  18583.11375
+    # 2016-01-03 20:00:00  25.33     18620.00  18589.18450
+    # 2016-01-03 21:00:00  22.11     18490.25  18550.75675
+    # 2016-01-03 22:00:00  20.91     18717.50  18612.22950
+    # 2016-01-03 23:00:00  14.43     17559.25  18580.60000
+    #
+    # [34944 rows x 3 columns]
+
     print("df_test:", df_test, sep="\n")
+    # df_test:
+    #                      Price  Exogenous_1  Exogenous_2
+    # date
+    # 2016-01-04 00:00:00  13.78     16077.75  20162.33750
+    # 2016-01-04 01:00:00  12.77     15573.25  19991.67550
+    # 2016-01-04 02:00:00  10.56     15373.50  19701.83700
+    # 2016-01-04 03:00:00   3.87     15278.50  19222.00550
+    # 2016-01-04 04:00:00   3.20     15505.50  18784.78175
+    # ...                    ...          ...          ...
+    # 2017-12-31 19:00:00   7.92     16601.00  30649.08950
+    # 2017-12-31 20:00:00   4.06     15977.75  30034.54300
+    # 2017-12-31 21:00:00   5.30     15715.00  29653.00775
+    # 2017-12-31 22:00:00   1.86     15876.00  29520.32950
+    # 2017-12-31 23:00:00  -0.92     15130.00  29466.40875
+    #
+    # [17472 rows x 3 columns]
