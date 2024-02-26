@@ -14,6 +14,8 @@ import os
 from epftoolbox.data import read_and_split_data
 from epftoolbox.evaluation import MAE, sMAPE
 from epftoolbox.models import LEAR
+from datetime import datetime
+
 
 # ------------------------------ EXTERNAL PARAMETERS ------------------------------------#
 
@@ -68,22 +70,26 @@ begin_test_date = args.begin_test_date
 end_test_date = args.end_test_date
 
 # Read the input data and split it to train and test set
-df_train, df_test = read_and_split_data(path=os.path.join('.', 'examples', 'datasets'),
+df_train, df_test = read_and_split_data(path=os.path.join('..', 'examples', 'datasets'),
                                         dataset=dataset, response=response,
                                         years_test=years_test, begin_test_date=begin_test_date,
                                         end_test_date=end_test_date)
 
 # Define unique name and path to save the forecasts
-forecast_file_name = 'fc_nl_dat{0}_YT{1}_CW{2}.csv'.format(str(dataset), str(years_test), str(calibration_window))
-forecast_file_path = os.path.join('.', 'examples', 'experimental_files', forecast_file_name)
+forecast_file_name = ('fc_nl_dat{0}_YT{1}_CW{2}_{3}.csv'.
+                      format(str(dataset), str(years_test), str(calibration_window),
+                             datetime.now().strftime('%Y%m%d_%H%M%S')))
+forecast_file_path = os.path.join('..', 'examples', 'experimental_files', forecast_file_name)
 
 # Extract real response (day-ahead price) values from the test set
 # and pivot them wider by hour part of the timestamp index
 real_values = df_test.loc[:, ['Price']]
 real_values['column_hour'] = ['h' + h for h in real_values.index.strftime('%H').astype(int).astype(str)]
-real_values = pd.pivot_table(data=real_values,
+real_values = pd.pivot_table(data=real_values, values='Price',
                              index=real_values.index.date,
                              columns='column_hour', aggfunc='mean', sort=False)
+real_values.index.name = 'date'
+real_values.columns.name = None
 real_values.index = pd.to_datetime(real_values.index)
 
 # Compose an empty forecast DataFrame with the same structure as the real values DataFrame has
@@ -94,7 +100,7 @@ forecast[:] = np.nan
 model = LEAR(calibration_window=calibration_window)
 
 # Iterate over the model recalibration+forecast dates
-for current_date in forecast.index:
+for key, current_date in enumerate(forecast.index):
 
     # For simulation purposes, we assume that the available data is
     # the data up to the end of recalibration+forecast date
@@ -113,13 +119,14 @@ for current_date in forecast.index:
     forecast.loc[current_date, :] = y_pred
 
     # Compute metrics up to current recalibration+forecast date
-    mae = np.mean(a=MAE(p_real=real_values.loc[:current_date].values,
+    mae = np.mean(a=MAE(p_real=real_values.loc[:current_date].values.squeeze(),
                         p_pred=forecast.loc[:current_date].values.squeeze()))
-    smape = np.mean(a=sMAPE(p_real=real_values.loc[:current_date].values,
+    smape = np.mean(a=sMAPE(p_real=real_values.loc[:current_date].values.squeeze(),
                             p_pred=forecast.loc[:current_date].values.squeeze())) * 100
 
     # Print information
     print('{0} - sMAPE: {1:.2f}%  |  MAE: {2:.3f}'.format(str(current_date)[:10], smape, mae))
 
-    # Save the forecast
-    forecast.to_csv(path_or_buf=forecast_file_path)
+    # Save the forecasts in 30 days chunks
+    if (key + 1) % 30 == 0 or (key + 1) == len(forecast.index):
+        forecast.to_csv(path_or_buf=forecast_file_path, sep=';', index=True, index_label='date', encoding='utf-8')
