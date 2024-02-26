@@ -8,7 +8,7 @@ import pandas as pd
 
 
 def _process_inputs_for_metrics(p_real, p_pred):
-    """Function that checks that the two standard inputs of the metric functions satisfy some requirements
+    """ This function ensures that the two tabular inputs of the metric functions satisfy some formal requirements.
     
     Parameters
     ----------
@@ -22,32 +22,48 @@ def _process_inputs_for_metrics(p_real, p_pred):
         numpy.ndarray
             The p_real and p_pred as numpy.ndarray objects after checking that they satisfy requirements
     """
-    # Checking whether both datasets are of the same allowed object type
+    # Check whether both tabular datasets are of the same allowed object type
     if (isinstance(p_real, pd.DataFrame) and not isinstance(p_pred, pd.DataFrame)) or\
             (isinstance(p_real, pd.Series) and not isinstance(p_pred, pd.Series)) or\
             (isinstance(p_real, np.ndarray) and not isinstance(p_pred, np.ndarray)):
         raise TypeError('The p_real and the p_pred objects must be of the same type. '
                         'The p_real is of type {0} and p_pred of type {1}'.format(type(p_real), type(p_pred)))
 
-    # Checking whether datasets are of the allowed object types
+    # Check whether both tabular datasets are of the allowed object types
     if not isinstance(p_real, (pd.DataFrame, pd.Series, np.ndarray)):
-        raise TypeError('p_real and p_pred must be either a pandas.DataFrame, a pandas.Series, or a numpy.array. '
-                        'They are of type {0}'.format(type(p_real)))
+        raise TypeError('The p_real and the p_pred must be either a pandas.DataFrame, a pandas.Series, '
+                        'or a numpy.ndarray, but those are of type {0}'.format(type(p_real)))
 
-    # Transforming both datasets if they are pandas.Series to pandas.DataFrame
+    # In the case of numpy arrays
+    if isinstance(p_real, np.ndarray):
+        # Check whether the 2 have the same shape
+        if p_real.shape != p_pred.shape:
+            raise ValueError('The p_real and the p_pred must have the same shape.')
+
+    # In the case of pandas.Series convert those to pandas.DataFrames.
     if isinstance(p_real, pd.Series):
         p_real = p_real.to_frame()
         p_pred = p_pred.to_frame()
     
-    # Checking whether datasets are pandas.DataFrames
+    # In the case of pandas.DataFrames
     if isinstance(p_real, pd.DataFrame):
-        # Checking whether both DataFrames share the same indices
-        if not np.all((p_real.index == p_pred.index)):
-            raise ValueError('p_real and p_pred must have the same indices')
+        # Check whether the 2 have the same shape
+        if p_real.shape != p_pred.shape:
+            raise ValueError('The p_real and the p_pred must have the same shape.')
 
-        # Extracting their numeric values into numpy.ndarray
-        p_real = p_real.select_dtypes(["number"]).values.squeeze()
-        p_pred = p_pred.select_dtypes(["number"]).values.squeeze()
+        # Check whether both DataFrames share the same indices
+        if not np.all((p_real.index == p_pred.index)):
+            raise ValueError('The p_real and the p_pred must have the same indices.')
+
+        # Check whether both DataFrames share the same column names
+        if not np.all((p_real.columns == p_pred.columns)):
+            if len(p_real.columns) == 1:
+                p_real = p_real.rename(columns={p_real.columns[0]: 'Price'})
+                p_pred = p_pred.rename(columns={p_pred.columns[0]: 'Price'})
+            else:
+                raise ValueError('The p_real and the p_pred must have the same column names.'
+                                 '\tp_real columns: {0}\n\tp_pred columns: {1}'.
+                                 format(p_real.columns, p_pred.columns))
 
     return p_real, p_pred
 
@@ -55,10 +71,10 @@ def _process_inputs_for_metrics(p_real, p_pred):
 def naive_forecast(p_real, m=None, n_prices_day=24):
     """ Function to build the naive forecast for electricity price forecasting.
 
-    The seasonal naive forecasted values are equal to the last observed value from the same season.
+    The seasonal naive forecasted values are equal to the last observed value from the same time period.
     (The real observed value from the previous day or week.)
     
-    The function is used to compute the accuracy metrics MASE and RMAE
+    The function is used to compute the accuracy metrics MASE and RMAE.
         
     Parameters
     ----------
@@ -83,16 +99,15 @@ def naive_forecast(p_real, m=None, n_prices_day=24):
     # Init the naive forecast
     if m is None or m == 'W':
         # remove the first 7 days from among the indices
-        # index = p_real.index[n_prices_day * 7: ]
         empty_frame = p_real[n_prices_day * 7: ]
-    else:
+    elif m == 'D':
         # remove the first 1 day from among the indices
-        # index = p_real.index[n_prices_day: ]
-        empty_frame = p_real[n_prices_day * 7: ]
+        empty_frame = p_real[n_prices_day: ]
+    else:
+        raise ValueError('m argument has to be "D", "W", or None. Current values is {0}'.format(m))
 
     # create an empty result DataFrame with the new indices
-    # y_pred = pd.DataFrame(index=index, columns=p_real.columns)
-    y_pred = pd.DataFrame().reindex_like(empty_frame)
+    y_pred = pd.DataFrame().reindex_like(other=empty_frame)
 
     # If m is none the standard naive for EPF is built
     if m is None:
@@ -135,13 +150,13 @@ def naive_forecast(p_real, m=None, n_prices_day=24):
     return y_pred
 
 
-def _transform_input_prices_for_naive_forecast(p_real, m, freq):
-    """Function that ensures that the input of the naive forecast has the right format
+def _transform_input_prices_for_naive_forecast(p_real, m=None, freq='1h', start_datetime='2013-01-01 00:00:00'):
+    """ This function ensures that the input of the naive forecast has the right format
     
     Parameters
     ----------
         p_real : numpy.ndarray | pandas.DataFrame | pandas.Series
-            Array/dataframe containing the real prices
+            Array/dataframe/series containing the real prices
         m : str | None
             Index that specifies the seasonality in the naive forecast.
             It can be ``'D'`` for daily seasonality, ``'W'`` for weekly seasonality, or None
@@ -155,6 +170,10 @@ def _transform_input_prices_for_naive_forecast(p_real, m, freq):
             day-ahead electricity markets).
             If the shape of ``p_real`` is (n_days, n_prices_day), freq should be the frequency of the columns,
             not the daily frequency of the rows.
+        start_datetime : str
+            Start datetime of the data in %y-%m-%d %H:%M:%S format.
+            It is only used if ``p_real`` is a numpy.ndarray object.
+
     Returns
     -------
         pandas.DataFrame
@@ -162,14 +181,15 @@ def _transform_input_prices_for_naive_forecast(p_real, m, freq):
     """
     # Ensure that m value is correct
     if m not in ['D', 'W', None]: 
-        raise ValueError('m argument has to be D, W, or None. Current values is {}'.format(m))
+        raise ValueError('The value of "m" seasonality argument has to be D, W, or None. Current values is {0}'.
+                         format(m))
 
     # Check that input data is not numpy.ndarray and naive forecast is standard
     if m is None and not isinstance(p_real, pd.DataFrame) and not isinstance(p_real, pd.Series):
         raise TypeError('To use the standard naive forecast, i.e. m=None, the input '
-                        'data has to be pandas.DataFrame object.')
+                        'tabular data has to be pandas.DataFrame object.')
 
-    # Defining number of prices per day depending on frequency
+    # Define the number of prices per day depending on frequency
     n_prices_day = {'1h': 24, '30min': 48, '15min': 96, '5min': 288, '1min': 1440}[freq]
 
     # If numpy arrays are used, ensure that there is integer number of days in the dataset
@@ -182,21 +202,21 @@ def _transform_input_prices_for_naive_forecast(p_real, m, freq):
     if isinstance(p_real, pd.Series):
         p_real = p_real.to_frame()
 
-    # If input data is numpy.ndarray, transform to pandas.DataFrame
+    # If input data is numpy.ndarray
     if isinstance(p_real, np.ndarray):
-        # Transforming p_real to correct shape, i.e. (n_prices, 1)
+        # Transform the p_real array into the correct shape, i.e. (n_prices, 1)
         p_real = p_real.reshape(-1, 1)
-        # Building time indices for DataFrame
-        indices = pd.date_range(start='2013-01-01', periods=p_real.shape[0], freq=freq)        
-        # Building DataFrame
-        p_real = pd.DataFrame(p_real, index=indices)
+        # Calculate datetime indices
+        indices = pd.date_range(start=start_datetime, periods=p_real.shape[0], freq=freq)
+        # Convert to DataFrame
+        p_real = pd.DataFrame(data=p_real, index=indices)
     
-    # If input data is pandas-based, make sure it is in correct shape
+    # If input data is a pandas.DataFrame
     elif isinstance(p_real, pd.DataFrame):
-        # Making sure that index is of datetime format
+        # Ensure that index is in the datetime format
         p_real.index = pd.to_datetime(p_real.index)
 
-        # Raising error if frequency cannot be inferred
+        # Raise error if frequency cannot be inferred
         if p_real.index.inferred_freq is None:
             raise ValueError('The frequency/time periodicity of the data could not be inferred. '
                              'Ensure that the indices of the dataframe have a correct format '
