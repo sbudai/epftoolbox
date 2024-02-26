@@ -6,160 +6,271 @@ Function that implements the mean absolute scaled error (MASE) metric.
 
 # License: AGPL-3.0 License
 
-
 import numpy as np
 from epftoolbox.evaluation._ancillary_functions import (_process_inputs_for_metrics, naive_forecast,
                                                         _transform_input_prices_for_naive_forecast)
 from epftoolbox.evaluation import MAE
 
 
-def MASE(p_real, p_pred, p_real_in, m=None, freq='1h'):
-
-    """ Computes the mean absolute scaled error (MASE) between two forecasts:
+def MASE(p_real, p_pred, p_real_in, m=None, freq='1h', start_datetime=None):
+    """ Computes the mean absolute scaled error (MASE) between predicted and observed values:
     
     .. math:: 
         \\mathrm{MASE}_\\mathrm{m} = \\frac{1}{N}\\sum_{i=1}^N 
                          \\frac{\\bigl|p_\\mathrm{real}[i]−p_\\mathrm{pred}[i]\\bigr|}
                          {\\mathrm{MAE}(p_\\mathrm{real\\_in}, p_\\mathrm{naive\\_in}, m)}.
     
-    The numerator is the :class:`MAE` of a naive forecast ``Ynaive_in`` that is built using the insample
+    The numerator is the :class:`MAE` of a naive forecast ``Y_naive_in`` that is built using the insample
     dataset ``p_real_in`` and the :class:`naive_forecast` function with a seasonality index ``m``.
 
     If the datasets provided are numpy.ndarray objects, the function requires a ``freq`` argument specifying
     the data frequency. The ``freq`` argument must take one of the following four values ``'1h'`` for 1 hour,
-    ``'30min'`` for 30 minutes, ``'15min'`` for 15 minutes, or ``'5min'`` for 5 minutes,  (these are the
+    ``'30min'`` for 30 minutes, ``'15min'`` for 15 minutes, or ``'5min'`` for 5 minutes, (these are the
     four standard values in day-ahead electricity markets). 
     
-    Also, if the datasets provided are numpy.ndarray objects, ``m`` has to be 24 or 168, i.e. the 
+    Also, if the datasets provided are numpy.ndarray objects, ``m`` has to be 24 or 168, i.e., the
     :class:`naive_forecast` cannot be the standard in electricity price forecasting because the input
     data does not have associated a day of the week.
     
-    ``p_real``, ``p_pred``, and  `p_real_in`` can either be of shape 
+    ``p_real``, ``p_pred``, and `p_real_in`` can either be of shape
     :math:`(n_\\mathrm{days}, n_\\mathrm{prices/day})`,
     :math:`(n_\\mathrm{prices}, 1)`, or :math:`(n_\\mathrm{prices}, )` where
     :math:`n_\\mathrm{prices} = n_\\mathrm{days} \\cdot n_\\mathrm{prices/day}`
 
-
     Parameters
     ----------
-    p_real : numpy.ndarray, pandas.DataFrame
-        Array/dataframe containing the real prices. 
-    p_pred : numpy.ndarray, pandas.DataFrame
-        Array/dataframe containing the predicted prices. 
-    p_real_in : numpy.ndarray, pandas.DataFrame
-        Insample dataset that is used to compute build a :class:`naive_forecast` and compute its :class:`MAE`
-    m : int, optional
-        Index that specifies the seasonality in the :class:`naive_forecast` used to compute the normalizing
-        insample MAE. It can be be ``'D'`` for daily seasonality, ``'W'`` for weekly seasonality, or None
-        for the standard naive forecast in electricity price forecasting, 
-        i.e. daily seasonality for Tuesday to Friday and weekly seasonality 
-        for Saturday to Monday.    
-    freq : str, optional
-        Frequency of the data if ``p_real``, ``p_pred``, and ``p_real_in`` are numpy.ndarray objects.
-        It must take one of the following four values ``'1h'`` for 1 hour, ``'30min'`` for 30 minutes,
-        ``'15min'`` for 15 minutes, or ``'5min'`` for 5 minutes, (these are the four standard values in
-        day-ahead electricity markets). 
+        p_real : numpy.ndarray | pandas.DataFrame
+            Array/dataframe containing the observed prices.
+        p_pred : numpy.ndarray | pandas.DataFrame
+            Array/dataframe containing the predicted prices.
+        p_real_in : numpy.ndarray | pandas.DataFrame
+            Insample dataset that is used to compute build a :class:`naive_forecast` and compute its :class:`MAE`
+        m : str | None
+            Index that specifies the seasonality in the :class:`naive_forecast` used to compute the normalizing
+            insample MAE. It can be ``'D'`` for daily seasonality, ``'W'`` for weekly seasonality, or None
+            for the standard naive forecast in electricity price forecasting,
+            i.e., daily seasonality for Tuesday to Friday and weekly seasonality
+            for Saturday to Monday.
+        freq : str
+            Frequency of the data if it cannot be inferred from th tabular data. (In case of numpy arrays.)
+            It must take one of the following four values ``'1h'`` for 1 hour, ``'30min'`` for 30 minutes,
+            ``'15min'`` for 15 minutes, or ``'5min'`` for 5 minutes, (these are the four standard values in
+            day-ahead electricity markets).
+        start_datetime : str | None
+            Start datetime of the data in %y-%m-%d %H:%M:%S format.
+            It is only used if ``p_real`` is a numpy.ndarray object.
+
     Returns
     -------
-    float
-        The mean absolute scaled error (MASE).
-
-    Example
-    -------
-    >>> from epftoolbox.evaluation import MASE
-    >>> from epftoolbox.data import read_and_split_data
-    >>> import pandas as pd
-    >>> 
-    >>> # Download available forecast of the NP market available in the library repository
-    >>> # These forecasts accompany the original paper
-    >>> forecast = pd.read_csv('https://raw.githubusercontent.com/jeslago/epftoolbox/master/' + 
-    ...                       'forecasts/Forecasts_NP_DNN_LEAR_ensembles.csv', index_col=0)
-    >>> 
-    >>> # Transforming indices to datetime format
-    >>> forecast.index = pd.to_datetime(forecast.index)
-    >>> 
-    >>> # Reading data from the NP market
-    >>> df_train, df_test = read_and_split_data(path='.', dataset='NP', begin_test_date=forecast.index[0], 
-    ...                               end_test_date=forecast.index[-1])
-    Test datasets: 2016-12-27 00:00:00 - 2018-12-24 23:00:00
-    >>> 
-    >>> # Extracting forecast of DNN ensemble and display
-    >>> fc_DNN_ensemble = forecast.loc[:, ['DNN Ensemble']]
-    >>> 
-    >>> # Extracting real price and display
-    >>> real_price = df_test.loc[:, ['Price']]
-    >>> real_price_insample = df_train.loc[:, ['Price']]
-    >>> 
-    >>> # Building the same datasets with shape (n_days, n_prices/day) instead
-    >>> # of shape (n_prices, 1) and display
-    >>> fc_DNN_ensemble_2D = pd.DataFrame(fc_DNN_ensemble.values.reshape(-1, 24), 
-    ...                                   index=fc_DNN_ensemble.index[::24], 
-    ...                                   columns=['h' + str(h) for h in range(24)])
-    >>> real_price_2D = pd.DataFrame(real_price.values.reshape(-1, 24), 
-    ...                              index=real_price.index[::24], 
-    ...                              columns=['h' + str(h) for h in range(24)])
-    >>> real_price_insample_2D = pd.DataFrame(real_price_insample.values.reshape(-1, 24), 
-    ...                              index=real_price_insample.index[::24], 
-    ...                              columns=['h' + str(h) for h in range(24)])
-    >>> 
-    >>> fc_DNN_ensemble_2D.head()
-                       h0         h1         h2  ...        h21        h22        h23
-    2016-12-27  24.349676  23.127774  22.208617  ...  27.686771  27.045763  25.724071
-    2016-12-28  25.453866  24.707317  24.452384  ...  29.424558  28.627130  27.321902
-    2016-12-29  28.209516  27.715400  27.182692  ...  28.473288  27.926241  27.153401
-    2016-12-30  28.002935  27.467572  27.028558  ...  29.086532  28.518688  27.738548
-    2016-12-31  25.732282  24.668331  23.951569  ...  26.965008  26.450995  25.637346
-    >>> 
-     
-    Let's test the metric for different conditions.
-     
-    >>> # Evaluating MASE when real price and forecasts are both dataframes
-    >>> MASE(p_pred=fc_DNN_ensemble, p_real=real_price, 
-    ...      p_real_in=real_price_insample, m='W')
-    0.5217886515713188
-    >>> 
-    >>> # Evaluating MASE when real price and forecasts are both numpy arrays
-    >>> MASE(p_pred=fc_DNN_ensemble.values, p_real=real_price.values, 
-    ...      p_real_in=real_price_insample.values, m='W', freq='1h')
-    0.5217886515713188
-    >>> 
-    >>> # Evaluating MASE when input values are of shape (n_days, n_prices/day) instead
-    >>> # of shape (n_prices, 1)
-    >>> # Dataframes
-    >>> MASE(p_pred=fc_DNN_ensemble_2D, p_real=real_price_2D, 
-    ...      p_real_in=real_price_insample_2D, m='W')
-    0.5217886515713188
-    >>> # Numpy arrays
-    >>> MASE(p_pred=fc_DNN_ensemble_2D.values, p_real=real_price_2D.values, 
-    ...      p_real_in=real_price_insample_2D.values, m='W', freq='1h')
-    0.5217886515713188
-    >>> 
-    >>> # Evaluating MASE when input values are of shape (n_prices,)
-    >>> # instead of shape (n_prices, 1)
-    >>> # Pandas Series
-    >>> MASE(p_pred=fc_DNN_ensemble.loc[:, 'DNN Ensemble'], 
-    ...      p_real=real_price.loc[:, 'Price'],
-    ...      p_real_in=real_price_insample.loc[:, 'Price'], m='W')
-    0.5217886515713188
-    >>> # Numpy arrays
-    >>> MASE(p_pred=fc_DNN_ensemble.values.squeeze(), 
-    ...      p_real=real_price.values.squeeze(), 
-    ...      p_real_in=real_price_insample.values.squeeze(), m='W', freq='1h')
-    0.5217886515713188
-
+        float
+            The mean absolute scaled error (MASE).
     """
-
-    # Computing the MAE of the naive forecast
-    # Pre-process prices to have the correct format
-    p_real_in = _transform_input_prices_for_naive_forecast(p_real=p_real_in, m=m, freq=freq)
-    # Build seasonal naive forecast
+    # Pre-process insample observed prices to have the correct format
+    p_real_in = _transform_input_prices_for_naive_forecast(p_real=p_real_in, m=m, freq=freq,
+                                                           start_datetime=start_datetime)
+    # Compute seasonal naive forecast
     p_pred_naive_in = naive_forecast(p_real=p_real_in, m=m, n_prices_day=24)
+
     # Select common time indices of seasonal naive forecast and insample observed data
     p_real_in = p_real_in.loc[p_pred_naive_in.index]
-    # Computing naive MAE
-    MAE_naive_train = MAE(p_real=p_real_in, p_pred=p_pred_naive_in)
 
-    # Checking if standard inputs are compatible
+    # Calculate the MAE of the naive forecast
+    mae_naive_train = MAE(p_real=p_real_in, p_pred=p_pred_naive_in)
+
+    # Check if the standard real and predicted inputs are compatible
     p_real, p_pred = _process_inputs_for_metrics(p_real=p_real, p_pred=p_pred)
 
-    return np.mean(np.abs(p_real - p_pred) / MAE_naive_train)
+    # Calculate the absolute scaled error at every time point
+    ase = np.abs(p_real - p_pred) / mae_naive_train
+
+    return np.mean(a=ase)
+
+
+if __name__ == '__main__':
+    # These codes below will only be executed if this script is run as the main program.
+    from epftoolbox.data import read_and_split_data
+    import pandas as pd
+    import os
+
+    # Download available day-ahead price forecast of the NP market available in the library repository
+    # These forecasts accompany the original paper
+    forecast = pd.read_csv('https://raw.githubusercontent.com/jeslago/epftoolbox/master/'
+                           'forecasts/Forecasts_NP_DNN_LEAR_ensembles.csv', index_col=0)
+
+    # Extract the forecasted day-ahead electricity prices based on 'DNN Ensemble' model and display
+    fc_DNN_ensemble = forecast.loc[:, ['DNN Ensemble']]
+    print('fc_DNN_ensemble:', fc_DNN_ensemble, sep='\n')
+    # fc_DNN_ensemble:
+    #                      DNN Ensemble
+    # 2016-12-27 00:00:00     24.901055
+    # 2016-12-27 01:00:00     23.496779
+    # 2016-12-27 02:00:00     22.808439
+    # 2016-12-27 03:00:00     22.529546
+    # 2016-12-27 04:00:00     23.217815
+    # ...                           ...
+    # 2018-12-24 19:00:00     50.993732
+    # 2018-12-24 20:00:00     49.430166
+    # 2018-12-24 21:00:00     48.648760
+    # 2018-12-24 22:00:00     47.358303
+    # 2018-12-24 23:00:00     46.116690
+    # [17472 rows x 1 columns]
+
+    # Transform its indices to datetime format
+    fc_DNN_ensemble.index = pd.to_datetime(fc_DNN_ensemble.index)
+
+    # Read the real day-ahead electricity price data of the Nord Pool market
+    # The scope period should be the same as in forecasted data.
+    df_train, df_test = read_and_split_data(path=os.path.join('..', '..', 'examples', 'datasets'),
+                                            dataset='NP', response='Price',
+                                            begin_test_date=fc_DNN_ensemble.index[0],
+                                            end_test_date=fc_DNN_ensemble.index[-1])
+    # Training dataset period: 2013-01-01 00:00:00 - 2016-12-26 23:00:00
+    # Testing dataset period: 2016-12-27 00:00:00 - 2018-12-24 23:00:00
+
+    # Extract the real day-ahead electricity price data and display
+    real_price = df_test.loc[:, ['Price']]
+    real_price_insample = df_train.loc[:, ['Price']]
+    print('real_price:', real_price, sep='\n')
+    # real_price:
+    #                      Price
+    # Date
+    # 2016-12-27 00:00:00  24.08
+    # 2016-12-27 01:00:00  22.52
+    # 2016-12-27 02:00:00  20.13
+    # 2016-12-27 03:00:00  19.86
+    # 2016-12-27 04:00:00  20.09
+    # ...                    ...
+    # 2018-12-24 19:00:00  50.72
+    # 2018-12-24 20:00:00  49.86
+    # 2018-12-24 21:00:00  49.09
+    # 2018-12-24 22:00:00  49.02
+    # 2018-12-24 23:00:00  48.10
+    # [17472 rows x 1 columns]
+
+    # Build a 2-dimensional price forecast dataframe with shape (rows: n_days, columns: n_prices/n_day)
+    # instead of 1-dimensional shape (rows: n_prices, columns: 1) and display
+    fc_DNN_ensemble['column_hour'] = ['h' + h for h in fc_DNN_ensemble.index.strftime('%H').astype(int).astype(str)]
+    fc_DNN_ensemble_2D = pd.pivot_table(data=fc_DNN_ensemble, values='DNN Ensemble',
+                                        index=fc_DNN_ensemble.index.date,
+                                        columns='column_hour', aggfunc='mean', sort=False)
+    fc_DNN_ensemble_2D.index = pd.to_datetime(fc_DNN_ensemble_2D.index)
+    fc_DNN_ensemble_2D.index.name = 'date'
+    fc_DNN_ensemble_2D.columns.name = None
+    fc_DNN_ensemble.drop(['column_hour'], axis='columns', inplace=True)
+    print('fc_DNN_ensemble_2D:', fc_DNN_ensemble_2D, sep='\n')
+    # fc_DNN_ensemble_2D:
+    #                     h0         h1         h2  ...        h21        h22        h23
+    # date                                          ...
+    # 2016-12-27   24.901055  23.496779  22.808439  ...  28.640429  27.806076  26.643023
+    # 2016-12-28   25.164850  24.544741  24.135444  ...  29.153526  28.375926  27.324923
+    # 2016-12-29   28.330177  27.697056  27.186900  ...  28.204550  27.970621  27.199672
+    # 2016-12-30   27.948486  27.374095  27.076586  ...  29.083482  28.470059  27.713009
+    # 2016-12-31   26.366282  25.459522  24.848794  ...  27.410532  26.989756  26.243367
+    # ...                ...        ...        ...  ...        ...        ...        ...
+    # 2018-12-20   50.030031  49.559196  48.983173  ...  52.382862  51.247468  50.062469
+    # 2018-12-21   48.193556  47.452021  46.931173  ...  51.885920  50.595848  49.077818
+    # 2018-12-22   47.561112  46.781378  46.285856  ...  50.142850  49.016890  47.803343
+    # 2018-12-23   49.353018  48.732417  48.444989  ...  52.442492  50.556766  49.600979
+    # 2018-12-24   49.099671  47.957044  47.300990  ...  48.648760  47.358303  46.116690
+    # [728 rows x 24 columns]
+
+    # Build a 2-dimensional real price dataframe with shape (rows: n_days, columns: n_prices/n_day)
+    # instead of 1-dimensional shape (rows: n_prices, columns: 1) and display
+    real_price['column_hour'] = ['h' + h for h in real_price.index.strftime('%H').astype(int).astype(str)]
+    real_price_2D = pd.pivot_table(data=real_price, values='Price',
+                                   index=real_price.index.date,
+                                   columns='column_hour', aggfunc='mean', sort=False)
+    real_price_2D.index = pd.to_datetime(real_price_2D.index)
+    real_price_2D.index.name = 'date'
+    real_price_2D.columns.name = None
+    real_price.drop(['column_hour'], axis='columns', inplace=True)
+    print('real_price_2D:', real_price_2D, sep='\n')
+    # real_price_2D:
+    #                 h0     h1     h2     h3  ...    h20    h21    h22    h23
+    # date                                     ...
+    # 2016-12-27   24.08  22.52  20.13  19.86  ...  29.14  28.37  27.24  25.73
+    # 2016-12-28   26.45  26.26  26.24  26.43  ...  31.24  30.65  30.02  29.37
+    # 2016-12-29   29.26  28.72  28.29  28.32  ...  30.28  30.01  29.44  28.76
+    # 2016-12-30   28.18  27.03  26.47  26.47  ...  29.56  28.96  27.77  25.95
+    # 2016-12-31   25.11  23.65  22.99  22.13  ...  27.98  27.52  26.80  26.71
+    # ...            ...    ...    ...    ...  ...    ...    ...    ...    ...
+    # 2018-12-20   48.35  48.08  48.31  47.36  ...  52.25  51.29  50.00  48.12
+    # 2018-12-21   47.21  46.42  46.00  46.12  ...  52.05  51.43  50.07  49.01
+    # 2018-12-22   48.39  47.72  47.23  46.60  ...  53.05  52.05  51.09  50.47
+    # 2018-12-23   51.49  50.83  50.74  50.14  ...  55.61  53.99  53.86  52.32
+    # 2018-12-24   51.09  50.19  48.98  48.80  ...  49.86  49.09  49.02  48.10
+    # [728 rows x 24 columns]
+
+    # Build a 2-dimensional real price in sample dataframe with shape (rows: n_days, columns: n_prices/n_day)
+    # instead of 1-dimensional shape (rows: n_prices, columns: 1) and display
+    real_price_insample.index = pd.to_datetime(real_price_insample.index)
+    real_price_insample['column_hour'] = \
+        ['h' + h for h in real_price_insample.index.strftime('%H').astype(int).astype(str)]
+    real_price_insample_2D = pd.pivot_table(data=real_price_insample, values='Price',
+                                            index=real_price_insample.index.date,
+                                            columns='column_hour', aggfunc='mean', sort=False)
+    real_price_insample_2D.index = pd.to_datetime(real_price_insample_2D.index)
+    real_price_insample_2D.index.name = 'date'
+    real_price_insample_2D.columns.name = None
+    real_price_insample.drop(['column_hour'], axis='columns', inplace=True)
+    print('real_price_insample_2D:', real_price_insample_2D, sep='\n')
+    # real_price_insample_2D:
+    #                 h0     h1     h2     h3  ...    h20    h21    h22    h23
+    # date                                     ...
+    # 2013-01-01   31.05  30.47  28.92  27.88  ...  35.49  34.41  34.66  32.55
+    # 2013-01-02   33.15  32.66  31.83  31.47  ...  37.46  36.94  36.37  34.59
+    # 2013-01-03   33.11  32.22  31.46  31.67  ...  35.91  35.45  34.77  32.09
+    # 2013-01-04   31.71  30.86  30.21  30.36  ...  36.03  35.43  35.17  32.95
+    # 2013-01-05   33.69  32.71  32.09  32.17  ...  36.24  35.89  35.70  35.44
+    # ...            ...    ...    ...    ...  ...    ...    ...    ...    ...
+    # 2016-12-22   26.38  26.01  26.07  26.61  ...  29.42  29.15  28.55  27.36
+    # 2016-12-23   25.63  24.78  24.24  24.54  ...  28.08  27.80  27.17  24.52
+    # 2016-12-24   25.34  23.94  23.17  22.72  ...  25.05  24.92  25.20  23.93
+    # 2016-12-25   23.51  21.53  18.75  18.62  ...  27.49  27.63  26.87  25.60
+    # 2016-12-26   25.50  22.50  18.95  15.93  ...  27.11  26.82  26.65  25.68
+    # [1456 rows x 24 columns]
+
+    # Let's test the metric for different conditions.
+
+    # Evaluate the MASE when real day-ahead prices and forecast are all 1-dimensional (long) dataframes
+    print("MASE(p_pred=fc_DNN_ensemble, p_real=real_price, p_real_in=real_price_insample, m='W'): {0}".
+          format(MASE(p_pred=fc_DNN_ensemble, p_real=real_price, p_real_in=real_price_insample, m='W')))
+    # MASE(p_pred=fc_DNN_ensemble, p_real=real_price, p_real_in=real_price_insample, m='W'): 0.526904657794403
+
+    # # Evaluate the MASE when real day-ahead prices and forecasts are all pandas series
+    print("MASE(p_pred=fc_DNN_ensemble.loc[:, 'DNN Ensemble'], p_real=real_price.loc[:, 'Price'], "
+          "p_real_in=real_price_insample.loc[:, 'Price'], m='W'): {0}".
+          format(MASE(p_pred=fc_DNN_ensemble.loc[:, 'DNN Ensemble'], p_real=real_price.loc[:, 'Price'],
+                      p_real_in=real_price_insample.loc[:, 'Price'], m='W')))
+    # MASE(p_pred=fc_DNN_ensemble.loc[:, 'DNN Ensemble'], p_real=real_price.loc[:, 'Price'],
+    #      p_real_in=real_price_insample.loc[:, 'Price'], m='W'): 0.526904657794403
+
+    # Evaluate the MASE when real day-ahead prices and forecasts are all 1-dimensional (long) numpy arrays
+    print("MASE(p_pred=fc_DNN_ensemble.loc[:, 'DNN Ensemble'].values, p_real=real_price.loc[:, 'Price'].values, "
+          "p_real_in=real_price_insample.loc[:, 'Price'].values, m='W',"
+          "start_datetime=real_price.index[0].strftime('%Y-%m-%d %H:%M:%S')): {0}".
+          format(MASE(p_pred=fc_DNN_ensemble.loc[:, 'DNN Ensemble'].values, p_real=real_price.loc[:, 'Price'].values,
+                      p_real_in=real_price_insample.loc[:, 'Price'].values, m='W',
+                      start_datetime=real_price.index[0].strftime('%Y-%m-%d %H:%M:%S'))))
+    # MASE(p_pred=fc_DNN_ensemble.loc[:, 'DNN Ensemble'].values, p_real=real_price.loc[:, 'Price'].values,
+    #      p_real_in=real_price_insample.loc[:, 'Price'].values, m='W',
+    #      start_datetime=real_price.index[0].strftime('%Y-%m-%d %H:%M:%S')): 0.526904657794403
+
+    # Evaluate the MASE when real day-ahead prices and forecasts are all 2-dimensional (wide) DataFrames
+    # (rows: n_days, columns: n_prices/n_day)
+    print("MASE(p_pred=fc_DNN_ensemble_2D, p_real=real_price_2D, p_real_in=real_price_insample_2D, m='W'): {0}".
+          format(MASE(p_pred=fc_DNN_ensemble_2D, p_real=real_price_2D, p_real_in=real_price_insample_2D, m='W')))
+    # MASE(p_pred=fc_DNN_ensemble_2D, p_real=real_price_2D, p_real_in=real_price_insample_2D, m='W'):
+    # 0.5269046577944031
+
+    # Evaluate the MASE when real day-ahead prices and forecasts are all 2-dimensional (wide) numpy arrays
+    # (rows: n_days, columns: n_prices/n_day)
+    print("MASE(p_pred=fc_DNN_ensemble_2D.values.squeeze(), p_real=real_price_2D.values.squeeze(), "
+          "p_real_in=real_price_insample_2D.values.squeeze(), m='W', freq='1h', "
+          "start_datetime=real_price.index[0].strftime('%Y-%m-%d %H:%M:%S')): {0}".
+          format(MASE(p_pred=fc_DNN_ensemble_2D.values.squeeze(), p_real=real_price_2D.values.squeeze(),
+                      p_real_in=real_price_insample_2D.values.squeeze(), m='W', freq='1h',
+                      start_datetime=real_price.index[0].strftime('%Y-%m-%d %H:%M:%S'))))
+    # MASE(p_pred=fc_DNN_ensemble_2D.values.squeeze(), p_real=real_price_2D.values.squeeze(),
+    #      p_real_in=real_price_insample_2D.values.squeeze(), m='W', freq='1h',
+    #      start_datetime=real_price.index[0].strftime('%Y-%m-%d %H:%M:%S')): 0.5269046577944031
