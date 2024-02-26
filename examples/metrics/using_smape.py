@@ -33,6 +33,7 @@ fc_DNN_ensemble_2D = pd.pivot_table(data=fc_DNN_ensemble, values='DNN Ensemble',
                                     index=fc_DNN_ensemble.index.strftime('%Y-%m-%d'),
                                     columns='column_hour', aggfunc='mean', sort=False)
 fc_DNN_ensemble.drop(['column_hour'], axis='columns', inplace=True)
+fc_DNN_ensemble_2D.columns.name = None
 print('fc_DNN_ensemble_2D:', fc_DNN_ensemble_2D, sep='\n')
 
 # Building a 2-dimensional real price dataframe with shape (rows: n_days, columns: n_prices/n_day)
@@ -43,6 +44,7 @@ real_price_2D = pd.pivot_table(data=real_price, values='Price',
                                index=real_price.index.strftime('%Y-%m-%d'),
                                columns='column_hour', aggfunc='mean', sort=False)
 real_price.drop(['column_hour'], axis='columns', inplace=True)
+real_price_2D.columns.name = None
 print('real_price_2D:', real_price_2D, sep='\n')
 
 
