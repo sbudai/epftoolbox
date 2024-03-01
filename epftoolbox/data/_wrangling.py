@@ -17,7 +17,7 @@ class MedianScaler(object):
 
     def __init__(self):
         self.median = None
-        self.mad = None
+        self.med_abs_dev = None
         self.fitted = False
 
     def fit(self, data) -> None:
@@ -37,11 +37,12 @@ class MedianScaler(object):
         self.median = np.median(a=data, axis=0)
 
         # in each array column compute the median absolute deviation from the column median value
-        # mad = median(abs(a - median_value)/norm_constant); where norm constant is scipy.stats.norm.ppf(3/4.) = 0.6745
+        # med_abs_dev = median(abs(a - median_value)/norm_constant)
+        # where norm constant is scipy.stats.norm.ppf(3/4.) = 0.6745
         # Robust methods reduce the influence of the outlier values and the long tails in distributions,
         # thus providing statistics that describe the distribution of the central or “good” part of the data collected.
         # Further details: <https://consultglp.com/wp-content/uploads/2015/02/robust-statistics-mad-method.pdf>
-        self.mad = mad(a=data, axis=0)
+        self.med_abs_dev = mad(a=data, axis=0)
 
         # set object as fitted
         self.fitted = True
@@ -72,7 +73,7 @@ class MedianScaler(object):
         # iterate over columns of the input array
         # and normalize values using median and robust median absolute deviation
         for i in range(data.shape[1]):
-            transformed_data[:, i] = (data[:, i] - self.median[i]) / self.mad[i]
+            transformed_data[:, i] = (data[:, i] - self.median[i]) / self.med_abs_dev[i]
 
         return transformed_data
 
@@ -123,7 +124,7 @@ class MedianScaler(object):
         # iterate over columns of the input array
         # and denormalize values using median and robust median absolute deviation
         for i in range(data.shape[1]):
-            transformed_data[:, i] = data[:, i] * self.mad[i] + self.median[i] 
+            transformed_data[:, i] = data[:, i] * self.med_abs_dev[i] + self.median[i]
 
         return transformed_data
 
@@ -331,15 +332,15 @@ def scaling(datasets, normalize):
             Each dataset in the list is a numpy.ndarray.
     """
     # instantiate a scaler object according to the normalization technique
-    scaler = DataScaler(normalize=normalize)
+    scaler_object = DataScaler(normalize=normalize)
 
     # estimate the scaler based on the first dataset
-    scaler.fit(dataset=datasets[0])
+    scaler_object.fit(dataset=datasets[0])
 
     # scale (normalize) all the datasets in the list
-    scaled_datasets = [scaler.transform(dataset=dataset) for dataset in datasets]
+    scaled_datasets = [scaler_object.transform(dataset=dataset) for dataset in datasets]
 
-    return scaled_datasets, scaler
+    return scaled_datasets, scaler_object
 
 
 if __name__ == '__main__':
@@ -349,7 +350,7 @@ if __name__ == '__main__':
     import os
 
     df_train, df_test = read_and_split_data(path=os.path.join('..', '..', 'examples', 'datasets'), dataset='PJM',
-                                            response='Zonal COMED price',
+                                            response_col='Zonal COMED price',
                                             begin_test_date='01-01-2016 00:00', end_test_date='01-02-2016 23:00')
     # Training dataset period: 2013-01-01 00:00:00 - 2015-12-31 23:00:00
     # Testing dataset period: 2016-01-01 00:00:00 - 2016-02-01 23:00:00
