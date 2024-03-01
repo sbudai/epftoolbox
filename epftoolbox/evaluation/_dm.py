@@ -213,7 +213,7 @@ if __name__ == '__main__':
     # The scope period should be the same as in forecasted data.
     _, df_test = read_and_split_data(path=os.path.join('..', '..', 'examples', 'datasets'),
                                      dataset='NP',
-                                     response='Price',
+                                     response_col='Price',
                                      begin_test_date=forecasts.index[0],
                                      end_test_date=forecasts.index[-1])
     # Training dataset period: 2013-01-01 00:00:00 - 2016-12-26 23:00:00
