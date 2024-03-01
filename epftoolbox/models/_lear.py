@@ -12,6 +12,7 @@ import os
 from sklearn.linear_model import LassoLarsIC, Lasso
 from epftoolbox.data import read_and_split_data, scaling
 from epftoolbox.evaluation import MAE, sMAPE
+# noinspection PyProtectedMember
 from sklearn.utils._testing import ignore_warnings
 from sklearn.exceptions import ConvergenceWarning
 from datetime import datetime
@@ -56,7 +57,7 @@ class LEAR(object):
                 The default value is 2500.
 
             price_lags : tuple
-                Daily lags of the response variable used for training and forecasting.
+                Daily lags of the response_col variable used for training and forecasting.
                 The default values are (1, 2, 3, 7)
 
             exog_lags : tuple
@@ -79,7 +80,7 @@ class LEAR(object):
         # Set the maximum number of iterations for the LASSO algorithm
         self.max_iter = max_iter
 
-        # Set the lags of the response variable used for training and forecasting
+        # Set the lags of the response_col variable used for training and forecasting
         self.price_lags = price_lags
 
         # Set the lags of the exogenous variables used for training and forecasting
@@ -117,7 +118,7 @@ class LEAR(object):
                 The prediction of day-ahead prices after recalibrating the model.
         """
 
-        # Rescale the response variable of the training set
+        # Rescale the response_col variable of the training set
         [y_train_np], self.scalerY = scaling(datasets=[y_train.to_numpy()], normalize=self.normalize)
 
         # Rescale all explanatory variables of the training set except dummies (the last 7 features/columns)
@@ -182,7 +183,7 @@ class LEAR(object):
         # Predicting the in scope hour day-ahead prices using a recalibrated LEAR model
         for h in range(24):
 
-            # Predict the response variable based on the explanatory variables
+            # Predict the response_col variable based on the explanatory variables
             y_pred[:, h] = self.models[h].predict(X=x_test_np)
 
         # Inverse transforms the predictions
@@ -207,8 +208,8 @@ class LEAR(object):
         Returns
         -------
             list[pandas.DataFrame, pandas.DataFrame, pandas.DataFrame]
-                A list of 3 pandas DataFrames containing the explanatory and response variable values
-                in from the training dataset, the response variable values for the test dataset.
+                A list of 3 pandas DataFrames containing the explanatory and response_col variable values
+                in from the training dataset, the response_col variable values for the test dataset.
         """
         # Check that the first index of the DataFrames corresponds with the hour 00:00
         if df_train.index[0].hour != 0:
@@ -226,7 +227,7 @@ class LEAR(object):
         shifted_train_responses = []
         shifted_test_responses = []
 
-        # iterate over the price_lags to calculate accordingly shifted response variables
+        # iterate over the price_lags to calculate accordingly shifted response_col variables
         for past_day in self.price_lags:
             shifted_df_train = pd.DataFrame(data=df_train.to_dict(orient='list')['Price'],
                                             index=df_train.index + pd.Timedelta(days=past_day),
@@ -288,7 +289,7 @@ class LEAR(object):
                 df_x_test.loc[df_x_test.index.dayofweek == dow, 'dayofweek_{0}'.format(dow)] = 1
                 df_x_test.loc[df_x_test.index.dayofweek != dow, 'dayofweek_{0}'.format(dow)] = 0
 
-        # Extract the response variable values from the train Dataframe
+        # Extract the response_col variable values from the train Dataframe
         # and pivot it wider by the hour part of the index
         df_y_train = df_train.loc[df_x_train.index[0]:, ['Price']]
         df_y_train['column_hour'] = ['h' + h for h in df_y_train.index.strftime('%H').astype(int).astype(str)]
@@ -395,7 +396,7 @@ def evaluate_lear_in_test_dataset(path_datasets_folder=os.path.join('..', '..', 
             Used in combination with the argument ``end_test_date``.
             If either of them is not provided, then the test dataset will be filtered upon
             the ``years_test`` argument.
-            The ``begin_test_date`` should either be string in "%d/%m/%Y 00:00" format,
+            The ``begin_test_date`` should either be string in "%Y-%m-%d 00:00:00" format,
             or datetime object.
 
         end_test_date : datetime.datetime | str | None
@@ -403,11 +404,11 @@ def evaluate_lear_in_test_dataset(path_datasets_folder=os.path.join('..', '..', 
             Used in combination with the argument ``begin_test_date``.
             If either of them is not provided, then the test dataset will be filtered upon
             the ``years_test`` argument.
-            The ``end_test_date`` should either be string in ``"%d/%m/%Y 23:00"`` format,
+            The ``end_test_date`` should either be string in ``"%Y-%m-%d 23:00:00"`` format,
             or a datetime object.
 
         price_lags : tuple
-                Daily lags of the response variable used for training and forecasting.
+                Daily lags of the response_col variable used for training and forecasting.
                 The default values are (1, 2, 3, 7)
 
         exog_lags : tuple
@@ -435,7 +436,7 @@ def evaluate_lear_in_test_dataset(path_datasets_folder=os.path.join('..', '..', 
     # Defining train and testing data
     df_train, df_test = read_and_split_data(path=path_datasets_folder,
                                             dataset=dataset,
-                                            response=response,
+                                            response_col=response,
                                             years_test=years_test,
                                             begin_test_date=begin_test_date,
                                             end_test_date=end_test_date)
