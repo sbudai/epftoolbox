@@ -26,8 +26,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--dataset", type=str, default='PJM', 
                     help='Name of the file (w/o "csv" extension) containing the input dataset.')
 
-parser.add_argument("--response", type=str, default='Zonal COMED price',
-                    help=' Name of the column in the input dataset that denotes the response variable. '
+parser.add_argument("--response_col", type=str, default='Zonal COMED price',
+                    help=' Name of the column in the input dataset that denotes the response_col variable. '
                          'PJM - `Zonal COMED price` '
                          'NP - `Price` '
                          'BE - `Prices` '
@@ -48,7 +48,7 @@ parser.add_argument("--begin_test_date", type=str, default=None,
                          'Used in combination with the argument `end_test_date`. '
                          'If either of them is not provided, the test dataset will be split '
                          'using the `years_test` argument. The `begin_test_date` '
-                         'should either be a string with the following format "%d/%m/%Y 00:00",'
+                         'should either be a string with the following format "%Y-%m-%d 00:00.00",'
                          'or a datetime object')
 
 parser.add_argument("--end_test_date", type=str, default=None, 
@@ -57,7 +57,7 @@ parser.add_argument("--end_test_date", type=str, default=None,
                          'Used in combination with the argument `begin_test_date`. '
                          'If either of them is not provided, the test dataset will be split '
                          'using the `years_test` argument. The `end_test_date` '
-                         'should either be a string with the following format "%d/%m/%Y 23:00",'
+                         'should either be a string with the following format "%Y-%m-%d 23:00:00",'
                          'or a datetime object.')
 
 # parse the arguments and assign them to variables
@@ -71,7 +71,7 @@ end_test_date = args.end_test_date
 
 # Read the input data and split it to train and test set
 df_train, df_test = read_and_split_data(path=os.path.join('..', 'examples', 'datasets'),
-                                        dataset=dataset, response=response,
+                                        dataset=dataset, response_col=response,
                                         years_test=years_test, begin_test_date=begin_test_date,
                                         end_test_date=end_test_date)
 
@@ -81,7 +81,7 @@ forecast_file_name = ('fc_nl_dat{0}_YT{1}_CW{2}_{3}.csv'.
                              datetime.now().strftime('%Y%m%d_%H%M%S')))
 forecast_file_path = os.path.join('..', 'examples', 'experimental_files', forecast_file_name)
 
-# Extract real response (day-ahead price) values from the test set
+# Extract real response_col (day-ahead price) values from the test set
 # and pivot them wider by hour part of the timestamp index
 real_values = df_test.loc[:, ['Price']]
 real_values['column_hour'] = ['h' + h for h in real_values.index.strftime('%H').astype(int).astype(str)]
@@ -107,7 +107,7 @@ for key, current_date in enumerate(forecast.index):
     data_available = pd.concat(objs=[df_train, df_test.loc[:current_date + pd.Timedelta(hours=23), :]],
                                axis=0)
 
-    # Set the real response variable values (day-ahead prices)
+    # Set the real response_col variable values (day-ahead prices)
     # of the recalibration+forecast date to NaN in the dataframe of available data
     data_available.loc[current_date:current_date + pd.Timedelta(hours=23), response] = np.NaN
 
@@ -127,6 +127,6 @@ for key, current_date in enumerate(forecast.index):
     # Print information
     print('{0} - sMAPE: {1:.2f}%  |  MAE: {2:.3f}'.format(str(current_date)[:10], smape, mae))
 
-    # Save the forecasts in 30 days chunks
+    # Save the forecasts in 30-days chunks
     if (key + 1) % 30 == 0 or (key + 1) == len(forecast.index):
         forecast.to_csv(path_or_buf=forecast_file_path, sep=';', index=True, index_label='date', encoding='utf-8')
