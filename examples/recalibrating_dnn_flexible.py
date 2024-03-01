@@ -16,7 +16,6 @@ from epftoolbox.evaluation import MAE, sMAPE
 from epftoolbox.models import DNN
 
 
-
 # ------------------------------ EXTERNAL PARAMETERS ------------------------------------#
 
 parser = argparse.ArgumentParser()
@@ -83,13 +82,13 @@ df_train, df_test = read_and_split_data(dataset=dataset, years_test=years_test, 
 
 # Defining unique name to save the forecast
 forecast_file_name = 'fc_nl' + str(nlayers) + '_dat' + str(dataset) + \
-                   '_YT' + str(years_test) + '_SF' + str(shuffle_train) + \
-                   '_DA' * data_augmentation + '_CW' + str(calibration_window) + \
-                   '_' + str(experiment_id) + '.csv'
+                     '_YT' + str(years_test) + '_SF' + str(shuffle_train) + \
+                     '_DA' * data_augmentation + '_CW' + str(calibration_window) + \
+                     '_' + str(experiment_id) + '.csv'
 
 forecast_file_path = os.path.join(path_recalibration_folder, forecast_file_name)
 
-# Defining empty forecast array and the real values to be predicted in a more friendly format
+# Defining an empty forecast array and the real values to be predicted in a more friendly format
 forecast = pd.DataFrame(index=df_test.index[::24], columns=['h' + str(k) for k in range(24)])
 real_values = df_test.loc[:, ['Price']].values.reshape(-1, 24)
 real_values = pd.DataFrame(real_values, index=forecast.index, columns=forecast.columns)
@@ -97,8 +96,8 @@ real_values = pd.DataFrame(real_values, index=forecast.index, columns=forecast.c
 # If we are not starting a new recalibration but re-starting an old one, we import the
 # existing files and print metrics 
 if not new_recalibration:
-    # Import existinf forecasting file
-    forecast = pd.read_csv(forecast_file_path, index_col=0)
+    # Import existing forecasting file
+    forecast = pd.read_csv(filepath_or_buffer=forecast_file_path, index_col=0)
     forecast.index = pd.to_datetime(forecast.index)
 
     # Reading dates to still be forecasted by checking NaN values
@@ -108,15 +107,15 @@ if not new_recalibration:
     # and exit the script
     if len(forecast_dates) == 0:
 
-        mae = np.mean(MAE(forecast.values.squeeze(), real_values.values))
-        smape = np.mean(sMAPE(forecast.values.squeeze(), real_values.values)) * 100
-        print('{} - sMAPE: {:.2f}%  |  MAE: {:.3f}'.format('Final metrics', smape, mae))
+        mae = np.mean(a=MAE(p_real=real_values.values, p_pred=forecast.values.squeeze()))
+        smape = np.mean(a=sMAPE(p_real=real_values.values, p_pred=forecast.values.squeeze())) * 100
+        print('{0} - sMAPE: {1:.2f}%  |  MAE: {2:.3f}'.format('Final metrics', smape, mae))
     
 else:
     forecast_dates = forecast.index
 
 model = DNN(
-    experiment_id=experiment_id, path_hyperparameter_folder=path_hyperparameter_folder, nlayers=nlayers, 
+    experiment_id=str(experiment_id), path_hyperparameter_folder=path_hyperparameter_folder, nlayers=nlayers,
     dataset=dataset, years_test=years_test, shuffle_train=shuffle_train, data_augmentation=data_augmentation,
     calibration_window=calibration_window)
 
@@ -139,11 +138,11 @@ for date in forecast_dates:
     forecast.loc[date, :] = Yp
 
     # Computing metrics up-to-current-date
-    mae = np.mean(MAE(forecast.loc[:date].values.squeeze(), real_values.loc[:date].values)) 
-    smape = np.mean(sMAPE(forecast.loc[:date].values.squeeze(), real_values.loc[:date].values)) * 100
+    mae = np.mean(a=MAE(p_real=real_values.loc[:date].values, p_pred=forecast.loc[:date].values.squeeze()))
+    smape = np.mean(a=sMAPE(p_real=real_values.loc[:date].values, p_pred=forecast.loc[:date].values.squeeze())) * 100
 
-    # Pringint information
-    print('{} - sMAPE: {:.2f}%  |  MAE: {:.3f}'.format(str(date)[:10], smape, mae))
+    # Print information
+    print('{0} - sMAPE: {1:.2f}%  |  MAE: {2:.3f}'.format(str(date)[:10], smape, mae))
 
     # Saving forecast
-    forecast.to_csv(forecast_file_path)
+    forecast.to_csv(path_or_buf=forecast_file_path)
