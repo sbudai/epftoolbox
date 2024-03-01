@@ -14,7 +14,7 @@ forecast.index = pd.to_datetime(arg=forecast.index)
 
 # Reading the real day-ahead electricity price data of the Nord Pool market.
 # The scope period should be the same as in forecasted data.
-df_train, df_test = read_and_split_data(path='../datasets', dataset='NP', response='Price',
+df_train, df_test = read_and_split_data(path='../datasets', dataset='NP', response_col='Price',
                                         begin_test_date=forecast.index[0], end_test_date=forecast.index[-1])
 
 # Extracting the day-ahead electricity price forecasts based on 'DNN Ensemble' model and display
