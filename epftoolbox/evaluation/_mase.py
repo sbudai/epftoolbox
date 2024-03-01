@@ -121,7 +121,7 @@ if __name__ == '__main__':
     # Read the real day-ahead electricity price data of the Nord Pool market
     # The scope period should be the same as in forecasted data.
     df_train, df_test = read_and_split_data(path=os.path.join('..', '..', 'examples', 'datasets'),
-                                            dataset='NP', response='Price',
+                                            dataset='NP', response_col='Price',
                                             begin_test_date=fc_DNN_ensemble.index[0],
                                             end_test_date=fc_DNN_ensemble.index[-1])
     # Training dataset period: 2013-01-01 00:00:00 - 2016-12-26 23:00:00
