@@ -14,7 +14,7 @@ import os
 # where the file has to be a csv file
 dataset = 'DE'
 
-# Name of the column in the input dataset that denotes the response variable.
+# Name of the column in the input dataset that denotes the response_col variable.
 response = 'Price'
 
 # Number of years (a year is 364 days) in the test dataset.
