@@ -22,7 +22,7 @@ years_test = 2
 # Optional parameters for selecting the test dataset, if either of them is not provided, 
 # the test dataset is built using the years_test parameter. They should either be one of
 # the date formats existing in python or a string with the following format
-# "%d/%m/%Y %H:%M"
+# "%Y-%m-%d %H:%M"
 begin_test_date = None
 end_test_date = None
 
@@ -38,7 +38,7 @@ new_hyperopt = 1
 # Number of years used in the training dataset for recalibration
 calibration_window = 4
 
-# Unique identifier to read the trials file of hyperparameter optimization
+# Unique identifier to read the trial file of hyperparameter optimization
 experiment_id = 1
 
 # Number of iterations for hyperparameter optimization
@@ -52,7 +52,7 @@ path_hyperparameters_folder = "./experimental_files/"
 # We consider two directories, one for storing the datasets and the other one for the experimental files.
 # We start a hyperparameter optimization from scratch. We employ 1500 iterations in hyperopt,
 # 2 years of test data, a DNN with 2 hidden layers, a calibration window of 4 years,
-# we avoid data augmentation,  and we provide an experiment_id equal to 1
+# we avoid data augmentation, and we provide an experiment_id equal to 1
 hyperparameter_optimizer(path_datasets_folder=path_datasets_folder, 
                          path_hyperparameters_folder=path_hyperparameters_folder, 
                          new_hyperopt=new_hyperopt, max_evals=max_evals, nlayers=nlayers, dataset=dataset, 
