@@ -62,7 +62,7 @@ class MedianScaler(object):
                 A numpy array containing the normalized data.
         """
         if not self.fitted:
-            raise TypeError('The scaler has not been yet fitted. Call fit or fit_transform!')
+            raise TypeError('The scaler_y has not been yet fitted. Call fit or fit_transform!')
 
         if len(data.shape) != 2:
             raise IndexError('Provide 2-D array. First dimension is datapoints and second dimension is features.')
@@ -113,7 +113,7 @@ class MedianScaler(object):
                 A numpy array containing the inverse normalized data.
         """
         if not self.fitted:
-            raise TypeError('The scaler has not been yet fitted. Call fit or fit_transform!')
+            raise TypeError('The scaler_y has not been yet fitted. Call fit or fit_transform!')
 
         if len(data.shape) != 2:
             raise IndexError('Provide 2-D array. First dimension is datapoints and second dimension is features.')
@@ -225,19 +225,19 @@ class DataScaler(object):
             self.scaler = InvariantScaler()        
 
     def fit(self, dataset) -> None:
-        """ Method that estimates the scaler based on the ``dataset``.
+        """ Method that estimates the scaler_y based on the ``dataset``.
 
         Parameters
         ----------
             dataset : numpy.ndarray
-                Dataset used to estimate the scaler
+                Dataset used to estimate the scaler_y
         """
         self.scaler.fit(dataset)
 
     def transform(self, dataset):
         """ Method that scales the data in ``dataset``.
 
-        To estimate the scaler, the :class:`fit_transform` method must be called
+        To estimate the scaler_y, the :class:`fit_transform` method must be called
         before calling the :class:`transform` method.
         Parameters
         ----------
@@ -252,13 +252,13 @@ class DataScaler(object):
         return self.scaler.transform(dataset)
 
     def fit_transform(self, dataset):
-        """ Method that - according to scaler setting - calculates normalized values
+        """ Method that - according to scaler_y setting - calculates normalized values
         for each feature (column) of the ``dataset``.
         
         Parameters
         ----------
             dataset : numpy.ndarray
-                Dataset used to estimate the scaler
+                Dataset used to estimate the scaler_y
         
         Returns
         -------
@@ -270,7 +270,7 @@ class DataScaler(object):
     def inverse_transform(self, dataset):
         """Method that inverse-scale the data in ``dataset``
         
-        To estimate the scaler, the :class:`fit_transform` method must be called
+        To estimate the scaler_y, the :class:`fit_transform` method must be called
         before calling the :class:`inverse_transform` method.
 
         Parameters
@@ -331,10 +331,10 @@ def scaling(datasets, normalize):
             List of scaled datasets and the :class:`DataScaler` object used for scaling.
             Each dataset in the list is a numpy.ndarray.
     """
-    # instantiate a scaler object according to the normalization technique
+    # instantiate a scaler_y object according to the normalization technique
     scaler_object = DataScaler(normalize=normalize)
 
-    # estimate the scaler based on the first dataset
+    # estimate the scaler_y based on the first dataset
     scaler_object.fit(dataset=datasets[0])
 
     # scale (normalize) all the datasets in the list
@@ -407,9 +407,9 @@ if __name__ == '__main__':
     #  [0.03438982 0.23016409 0.2261206 ]
     #  [0.0337633  0.22531906 0.21524813]]
 
-    print('\ntype(scaler):', type(scaler))
-    # type(scaler): <class 'epftoolbox.data._wrangling.DataScaler'>
+    print('\ntype(scaler_y):', type(scaler))
+    # type(scaler_y): <class 'epftoolbox.data._wrangling.DataScaler'>
 
-    print('\nscaler.scaler:', scaler.scaler, sep='\n')
-    # scaler.scaler:
+    print('\nscaler_y.scaler_y:', scaler.scaler, sep='\n')
+    # scaler_y.scaler_y:
     # MinMaxScaler()
