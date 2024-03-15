@@ -2,7 +2,7 @@
 Function that implements the mean absolute error (MAE) metric.
 """
 
-# Author: Jesus Lago
+# Author: Jesus Lago & Sandor Budai
 
 # License: AGPL-3.0 License
 
@@ -87,6 +87,10 @@ if __name__ == "__main__":
     # Training dataset period: 2013-01-01 00:00:00 - 2016-12-26 23:00:00
     # Testing dataset period: 2016-12-27 00:00:00 - 2018-12-24 23:00:00
 
+    # calculate daily delivery period numbers
+    daily_delivery_period_numbers = {'h': 24, '30min': 48, '15min': 96, '5min': 288}. \
+        get(df_test.index.inferred_freq, 24)
+
     # Extract the real day-ahead electricity price data and display
     real_price = df_test.loc[:, ['Price']]
     print('real_price:', real_price, sep='\n')
@@ -108,17 +112,21 @@ if __name__ == "__main__":
 
     # Build a 2-dimensional price forecast dataframe with shape (rows: n_days, columns: n_prices/n_day)
     # instead of 1-dimensional shape (rows: n_prices, columns: 1) and display
-    fc_DNN_ensemble['column_hour'] = ['h' + h for h in fc_DNN_ensemble.index.strftime('%H').astype(int).astype(str)]
+    if daily_delivery_period_numbers == 24:
+        fc_DNN_ensemble['period_of_the_day'] = ['p' + str(ind.hour).zfill(2) for ind in fc_DNN_ensemble.index]
+    else:
+        fc_DNN_ensemble['period_of_the_day'] = ['p' + str(ind.hour).zfill(2) + str(ind.minute).zfill(2)
+                                                for ind in fc_DNN_ensemble.index]
     fc_DNN_ensemble_2D = pd.pivot_table(data=fc_DNN_ensemble, values='DNN Ensemble',
                                         index=fc_DNN_ensemble.index.date,
-                                        columns='column_hour', aggfunc='mean', sort=False)
+                                        columns='period_of_the_day', aggfunc='mean', sort=False)
     fc_DNN_ensemble_2D.index = pd.to_datetime(fc_DNN_ensemble_2D.index)
     fc_DNN_ensemble_2D.index.name = 'date'
     fc_DNN_ensemble_2D.columns.name = None
-    fc_DNN_ensemble.drop(['column_hour'], axis='columns', inplace=True)
+    fc_DNN_ensemble.drop(['period_of_the_day'], axis='columns', inplace=True)
     print('fc_DNN_ensemble_2D:', fc_DNN_ensemble_2D, sep='\n')
     # fc_DNN_ensemble_2D:
-    #                     h0         h1         h2  ...        h21        h22        h23
+    #                    p00        p01        p02  ...        p21        p22        p23
     # date                                         ...
     # 2016-12-27   24.901055  23.496779  22.808439  ...  28.640429  27.806076  26.643023
     # 2016-12-28   25.164850  24.544741  24.135444  ...  29.153526  28.375926  27.324923
@@ -135,17 +143,21 @@ if __name__ == "__main__":
 
     # Build a 2-dimensional real price dataframe with shape (rows: n_days, columns: n_prices/n_day)
     # instead of 1-dimensional shape (rows: n_prices, columns: 1) and display
-    real_price['column_hour'] = ['h' + h for h in real_price.index.strftime('%H').astype(int).astype(str)]
+    if daily_delivery_period_numbers == 24:
+        real_price['period_of_the_day'] = ['p' + str(ind.hour).zfill(2) for ind in real_price.index]
+    else:
+        real_price['period_of_the_day'] = ['p' + str(ind.hour).zfill(2) + str(ind.minute).zfill(2)
+                                           for ind in real_price.index]
     real_price_2D = pd.pivot_table(data=real_price, values='Price',
                                    index=real_price.index.date,
-                                   columns='column_hour', aggfunc='mean', sort=False)
+                                   columns='period_of_the_day', aggfunc='mean', sort=False)
     real_price_2D.index = pd.to_datetime(real_price_2D.index)
     real_price_2D.index.name = 'date'
     real_price_2D.columns.name = None
-    real_price.drop(['column_hour'], axis='columns', inplace=True)
+    real_price.drop(['period_of_the_day'], axis='columns', inplace=True)
     print('real_price_2D:', real_price_2D, sep='\n')
     # real_price_2D:
-    #                 h0     h1     h2     h3 ...     h20    h21    h22    h23
+    #                p00    p01    p02    p03 ...     p20    p21    p22    p23
     # date
     # 2016-12-27   24.08  22.52  20.13  19.86  ...  29.14  28.37  27.24  25.73
     # 2016-12-28   26.45  26.26  26.24  26.43  ...  31.24  30.65  30.02  29.37
